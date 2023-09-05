@@ -64,6 +64,11 @@ if env['CONF']['USE_EFENCE']:
 # Children need to see the environment
 Export('env')
 
+
+# check the extras
+print(f"EXTRAS IS {env['EXTRAS'].lower()}")
+
+
 build_env = list(env['CONF'].items())
 
 from code_formatter import code_formatter

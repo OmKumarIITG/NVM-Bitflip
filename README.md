@@ -1,3 +1,27 @@
+# Remarks
+
+The project is updated to **compile** with (adapted) NVMain in <https://github.com/OMA-NVM/nv-NVmain>.
+It is still open to test whether it is functioning!
+
+To build:
+* compile with:
+  ```sh
+  python3 `which scons` EXTRAS=path/to/nvmain  ./build/ARM/gem5.opt -j 8
+  ```
+* build ARM binaries:
+  ```sh
+  cd system/arm/dt
+  make
+  cd ../bootloader/
+  make
+  cd ../../../
+  ```
+* execute with: 
+```sh
+./build/ARM/gem5.opt configs/deprecated/example/fs.py --bootloader system/arm/bootloader/arm64/boot.arm64 --caches --l2cache --cpu-type=TimingSimpleCPU --mem-type=NVMainMemory --nvmain-config=path/to/nvmain/Config/PCM_ISSCC_2012_4GB.config
+```
+
+
 # The gem5 Simulator
 
 This is the repository for the gem5 simulator. It contains the full source code
