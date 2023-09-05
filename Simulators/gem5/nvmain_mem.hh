@@ -64,11 +64,11 @@
 #include "src/SimInterface.h"
 #include "src/TagGenerator.h"
 
-class NVMainMemory : public AbstractMemory, public NVM::NVMObject
+class NVMainMemory : public gem5::memory::AbstractMemory, public NVM::NVMObject
 {
   private:
 
-    class MemoryPort : public SlavePort
+    class MemoryPort : public gem5::SlavePort
     {
         friend class NVMainMemory;
 
@@ -81,30 +81,30 @@ class NVMainMemory : public AbstractMemory, public NVM::NVMObject
 
       protected:
 
-        Tick recvAtomic(PacketPtr pkt);
+        gem5::Tick recvAtomic(gem5::PacketPtr pkt);
 
-        void recvFunctional(PacketPtr pkt);
+        void recvFunctional(gem5::PacketPtr pkt);
 
-        bool recvTimingReq(PacketPtr pkt);
+        bool recvTimingReq(gem5::PacketPtr pkt);
 
         void recvRetry( );
         void recvRespRetry( );
 
-        AddrRangeList getAddrRanges() const;
+        gem5::AddrRangeList getAddrRanges() const;
 
     };
 
     void tick();
     void SendResponses( );
-    EventWrapper<NVMainMemory, &NVMainMemory::tick> clockEvent;
-    EventWrapper<NVMainMemory, &NVMainMemory::SendResponses> respondEvent;
+    gem5::EventWrapper<NVMainMemory, &NVMainMemory::tick> clockEvent;
+    gem5::EventWrapper<NVMainMemory, &NVMainMemory::SendResponses> respondEvent;
 
     void CheckDrainState( );
     void ScheduleResponse( );
-    void ScheduleClockEvent( Tick );
-    void SetRequestData(NVM::NVMainRequest *request, PacketPtr pkt);
+    void ScheduleClockEvent( gem5::Tick );
+    void SetRequestData(NVM::NVMainRequest *request, gem5::PacketPtr pkt);
 
-    class NVMainStatPrinter : public Callback
+    class NVMainStatPrinter // : public Callback
     {
         friend class NVMainMemory;
 
@@ -118,7 +118,7 @@ class NVMainMemory : public AbstractMemory, public NVM::NVMObject
         std::ofstream statStream;
     };
 
-    class NVMainStatReseter : public Callback
+    class NVMainStatReseter // : public Callback
     {
       public:
         void process();
@@ -128,13 +128,13 @@ class NVMainMemory : public AbstractMemory, public NVM::NVMObject
 
     struct NVMainMemoryRequest
     {
-        PacketPtr packet;
+        gem5::PacketPtr packet;
         NVM::NVMainRequest *request;
-        Tick issueTick;
+        gem5::Tick issueTick;
         bool atomic;
     };
 
-    DrainManager *drainManager;
+    gem5::DrainManager *drainManager;
 
     NVM::NVMain *m_nvmainPtr;
     NVM::Stats *m_statsPtr;
@@ -150,9 +150,9 @@ class NVMainMemory : public AbstractMemory, public NVM::NVMObject
     uint64_t m_numAtomicAccesses;
     NVM::ncycle_t nextEventCycle;
 
-    Tick clock;
-    Tick lat;
-    Tick lat_var;
+    gem5::Tick clock;
+    gem5::Tick lat;
+    gem5::Tick lat_var;
     bool nvmain_atomic;
 
     uint64_t BusWidth;
@@ -163,18 +163,18 @@ class NVMainMemory : public AbstractMemory, public NVM::NVMObject
 
     NVMainStatPrinter statPrinter;
     NVMainStatReseter statReseter;
-    Tick lastWakeup;
+    gem5::Tick lastWakeup;
 
     uint64_t m_requests_outstanding;
 
   public:
 
-    typedef NVMainMemoryParams Params;
+    typedef gem5::NVMainMemoryParams Params;
     NVMainMemory(const Params *p);
     virtual ~NVMainMemory();
 
-    BaseSlavePort& getSlavePort(const std::string& if_name,
-                                PortID idx = InvalidPortID);
+    gem5::Port& getPort(const std::string& if_name,
+                           gem5::PortID idx = gem5::InvalidPortID);
     void init();
     void startup();
     void wakeup();
@@ -182,7 +182,7 @@ class NVMainMemory : public AbstractMemory, public NVM::NVMObject
     const Params *
     params() const
     {
-        return dynamic_cast<const Params *>(_params);
+        return dynamic_cast<const Params *>(&_params);
     }
 
 
@@ -190,24 +190,24 @@ class NVMainMemory : public AbstractMemory, public NVM::NVMObject
 
     void Cycle(NVM::ncycle_t) { }
 
-    DrainState drain() override;
+    gem5::DrainState drain() override;
 
-    void serialize(CheckpointOut &cp) const override;
-    void unserialize(CheckpointIn &cp) override;
+    void serialize(gem5::CheckpointOut &cp) const override;
+    void unserialize(gem5::CheckpointIn &cp) override;
 
     MemoryPort port;
     static NVMainMemory *masterInstance;
     NVMainMemory *otherInstance;
     std::vector<NVMainMemory *> allInstances;
     bool retryRead, retryWrite, retryResp;
-    std::deque<PacketPtr> responseQueue;
-    std::vector<PacketPtr> pendingDelete;
+    std::deque<gem5::PacketPtr> responseQueue;
+    std::vector<gem5::PacketPtr> pendingDelete;
     std::map<NVM::NVMainRequest *, NVMainMemoryRequest *> m_request_map;
 
   protected:
 
-    Tick doAtomicAccess(PacketPtr pkt);
-    void doFunctionalAccess(PacketPtr pkt);
+    gem5::Tick doAtomicAccess(gem5::PacketPtr pkt);
+    void doFunctionalAccess(gem5::PacketPtr pkt);
     void recvRetry();
 
 };

@@ -20,14 +20,16 @@ AddOption('--build-type', dest='build_type', type='choice',
 #  e.g., release, debug, profiling, etc.
 #
 env = Environment(ENV = os.environ)
+env.Append(CC='-9')
+env.Append(CXX='-9')
 
 build_type = GetOption("build_type")
 
 if build_type == None or build_type == "fast":
     env.Append(CCFLAGS='-O3')
-    env.Append(CCFLAGS='-Werror')
-    env.Append(CCFLAGS='-Wall')
-    env.Append(CCFLAGS='-Wextra')
+    #env.Append(CCFLAGS='-Werror')
+    #env.Append(CCFLAGS='-Wall')
+    #env.Append(CCFLAGS='-Wextra')
     env.Append(CCFLAGS='-Woverloaded-virtual')
     env.Append(CCFLAGS='-fPIC')
     env.Append(CCFLAGS='-std=c++0x')
@@ -154,7 +156,7 @@ colors['red']    = '\033[91m'
 colors['normal'] = '\033[0m'
 
 if not sys.stdout.isatty():
-    for key, value in colors.iteritems():
+    for key, value in colors.items():
         colors[key] = ''
 
 
@@ -194,15 +196,15 @@ class PrettyPrint(object):
             return strip_build_path(str(f), env)
 
         if len(source) > 0:
-            srcs = map(strip, source)
-            tgts = map(strip, target)
+            srcs = list(map(strip, source))
+            tgts = list(map(strip, target))
             split_src = srcs[0].split("/")
 
             src_basename = os.path.splitext(split_src[-1])[0]
             src_name = src_basename
             suffix = env['OBJSUFFIX']
         else:
-            tgts = map(strip, target)
+            tgts = list(map(strip, target))
             split_src = tgts[0].split("/")
             src_basename = os.path.splitext(split_src[-1])[0]
             src_name = tgts[0]

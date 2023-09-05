@@ -31,8 +31,8 @@ import optparse
 import sys
 
 from m5.params import *
-from AbstractMemory import *
-from ClockDomain import *
+from m5.objects.AbstractMemory import *
+from m5.objects.ClockDomain import *
 
 class NVMainMemory(AbstractMemory):
     type = 'NVMainMemory'

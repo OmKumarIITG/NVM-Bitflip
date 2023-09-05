@@ -43,13 +43,17 @@ if 'NVMAIN_HG' in os.environ:
 
 Import('*')
 
-# Assume that this is a gem5 extras build if this is set.
-if 'TARGET_ISA' in env and env['TARGET_ISA'] == 'no':
-    Return()
 
-    env.Append(CPPPATH=Dir('.'))
 
-if 'TARGET_ISA' in env and not 'NVMAIN_BUILD' in env:
+
+# # Assume that this is a gem5 extras build if this is set.
+# if "nvmain" in env['EXTRAS'].str.lower() and env['TARGET_ISA'] == 'no':
+#     Return()
+
+#     env.Append(CPPPATH=Dir('.'))
+
+if "nvmain" in env['EXTRAS'].lower() and not 'NVMAIN_BUILD' in env:
+    print("Here we define NVMainSource.")
     def NVMainSource(src):
         return Source(src)
     Export('NVMainSource')
@@ -68,7 +72,7 @@ if 'NVMAIN_BUILD' in env:
     NVMainSource('traceReader/RubyTrace/RubyTraceReader.cpp')
     NVMainSource('traceReader/NVMainTrace/NVMainTraceReader.cpp')
 
-elif 'TARGET_ISA' in env:
+elif "nvmain" in env['EXTRAS'].lower():
     # Assume that this is a gem5 extras build if this is set.
     NVMainSource('SimInterface/Gem5Interface/Gem5Interface.cpp')
 
@@ -77,7 +81,7 @@ elif 'TARGET_ISA' in env:
     def MakeIncludeAction(target, source, env):
         f = file(str(target[0]), 'w')
         for s in source:
-            print >>f, '#include "%s"' % str(s.abspath)
+            print('#include "%s"' % str(s.abspath), file=f)
         f.close()
 
     def MakeInclude(source):
@@ -91,6 +95,6 @@ elif "NVMAINPATH" in os.environ:
     # Nothing to be done here for now.
     pass
 else:
-    print "ERROR: What kind of build is this?"
+    print("ERROR: What kind of build is this?")
     sys.exit(1)
 

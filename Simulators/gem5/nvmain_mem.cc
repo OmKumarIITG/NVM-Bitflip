@@ -50,9 +50,13 @@
 #include "base/statistics.hh"
 #include "debug/NVMain.hh"
 #include "debug/NVMainMin.hh"
-#include "config/the_isa.hh"
+//#include "config/the_isa.hh"
+#include "base/trace.hh"
 
 using namespace NVM;
+using namespace gem5;
+using namespace gem5::memory;
+
 
 // This members are singleton values used to hold the main instance of
 // NVMain and it's wake/sleep (i.e., timing/atomic) status. These are
@@ -63,7 +67,7 @@ using namespace NVM;
 NVMainMemory *NVMainMemory::masterInstance = NULL;
 
 NVMainMemory::NVMainMemory(const Params *p)
-    : AbstractMemory(p), clockEvent(this), respondEvent(this),
+    : AbstractMemory(*p), clockEvent(this), respondEvent(this),
       drainManager(NULL), lat(p->atomic_latency),
       lat_var(p->atomic_variance), nvmain_atomic(p->atomic_mode),
       NVMainWarmUp(p->NVMainWarmUp), port(name() + ".port", *this)
@@ -163,8 +167,8 @@ NVMainMemory::init()
         statPrinter.forgdb = this;
 
         //registerExitCallback( &statPrinter );
-        ::Stats::registerDumpCallback( &statPrinter );
-        ::Stats::registerResetCallback( &statReseter );
+        gem5::statistics::registerDumpCallback( [this](){ statPrinter.process(); } );
+        gem5::statistics::registerResetCallback( [this](){ statReseter.process(); } );
 
         SetEventQueue( m_nvmainEventQueue );
         SetStats( m_statsPtr );
@@ -241,11 +245,11 @@ void NVMainMemory::wakeup()
 }
 
 
-BaseSlavePort &
-NVMainMemory::getSlavePort(const std::string& if_name, PortID idx)
+Port &
+NVMainMemory::getPort(const std::string& if_name, PortID idx)
 {
     if (if_name != "port") {
-        return MemObject::getSlavePort(if_name, idx);
+        return AbstractMemory::getPort(if_name, idx);
     } else {
         return port;
     }
@@ -301,7 +305,10 @@ NVMainMemory::SetRequestData(NVMainRequest *request, PacketPtr pkt)
 
     if (pkt->isRead())
     {
-        Request *dataReq = new Request(pkt->getAddr(), pkt->getSize(), 0, Request::funcMasterId);
+
+        // Request *dataReq = new Request(pkt->getAddr(), pkt->getSize(), 0, Request::funcRequestorId);
+        std::shared_ptr<Request> dataReq = std::shared_ptr<Request>(new Request(
+            pkt->getAddr(), pkt->getSize(), 0, Request::funcRequestorId));
         Packet *dataPkt = new Packet(dataReq, MemCmd::ReadReq);
         dataPkt->allocate();
         doFunctionalAccess(dataPkt);
@@ -316,12 +323,14 @@ NVMainMemory::SetRequestData(NVMainRequest *request, PacketPtr pkt)
         }
 
         delete dataPkt;
-        delete dataReq;
+        //delete dataReq;
         delete [] hostAddr;
     }
     else
     {
-        Request *dataReq = new Request(pkt->getAddr(), pkt->getSize(), 0, Request::funcMasterId);
+        //Request *dataReq = new Request(pkt->getAddr(), pkt->getSize(), 0, Request::funcRequestorId);
+        std::shared_ptr<Request> dataReq = std::shared_ptr<Request>(new Request(
+            pkt->getAddr(), pkt->getSize(), 0, Request::funcRequestorId));
         Packet *dataPkt = new Packet(dataReq, MemCmd::ReadReq);
         dataPkt->allocate();
         doFunctionalAccess(dataPkt);
@@ -339,7 +348,7 @@ NVMainMemory::SetRequestData(NVMainRequest *request, PacketPtr pkt)
         }
 
         delete dataPkt;
-        delete dataReq;
+        //delete dataReq;
         delete [] hostAddrT;
         delete [] hostAddr;
     }
@@ -411,7 +420,7 @@ NVMainMemory::MemoryPort::recvFunctional(PacketPtr pkt)
 
     for( std::deque<PacketPtr>::iterator i = memory.responseQueue.begin();
          i != memory.responseQueue.end(); ++i )
-        pkt->checkFunctional(*i);
+        pkt->trySatisfyFunctional(*i);
 
     pkt->popLabel();
 }
@@ -891,7 +900,7 @@ void NVMainMemory::tick( )
 
 
 NVMainMemory *
-NVMainMemoryParams::create()
+NVMainMemoryParams::create() const
 {
     return new NVMainMemory(this);
 }

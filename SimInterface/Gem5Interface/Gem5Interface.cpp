@@ -74,17 +74,17 @@ unsigned int Gem5Interface::GetInstructionCount( int core )
         fmt2 << "system.cpu" << core << ".commit.committedInsts";
     }
 
-    std::list<Stats::Info *> &allStats = Stats::statsList();
-    std::list<Stats::Info *>::iterator it;
+    std::list<gem5::statistics::Info *> &allStats = gem5::statistics::statsList();
+    std::list<gem5::statistics::Info *>::iterator it;
     
     for( it = allStats.begin(); it != allStats.end(); it++ )
     {
-        Stats::Info* curStat = (*it);
+        gem5::statistics::Info* curStat = (*it);
 
         if( curStat->name == fmt.str() 
             || ( core == 0 && curStat->name == "system.cpu.committedInsts" ) )
         {
-            Stats::ScalarInfo *scalar = (Stats::ScalarInfo *)curStat;
+            gem5::statistics::ScalarInfo *scalar = (gem5::statistics::ScalarInfo *)curStat;
 
             rv = (unsigned int)scalar->total();
         }
@@ -143,16 +143,16 @@ unsigned int Gem5Interface::GetCacheMisses( int core, int level )
         fmt << "system.cpu" << core << "num_mem_refs";
         fmt2 << "system.cpu.num_mem_refs";
 
-        std::list<Stats::Info *> &allStats = Stats::statsList();
-        std::list<Stats::Info *>::iterator it;
+        std::list<gem5::statistics::Info *> &allStats = gem5::statistics::statsList();
+        std::list<gem5::statistics::Info *>::iterator it;
         
         for( it = allStats.begin(); it != allStats.end(); it++ )
         {
-            Stats::Info* curStat = (*it);
+            gem5::statistics::Info* curStat = (*it);
 
             if( curStat->name == fmt.str() || curStat->name == fmt2.str() )
             {
-                Stats::ScalarInfo *scalar = (Stats::ScalarInfo *)curStat;
+                gem5::statistics::ScalarInfo *scalar = (gem5::statistics::ScalarInfo *)curStat;
 
                 rv = (unsigned int)scalar->total();
             }
@@ -185,32 +185,32 @@ unsigned int Gem5Interface::GetCacheMisses( int core, int level )
         fmt << "system.cpu" << core << "num_mem_refs";
         fmt2 << "system.cpu.num_mem_refs";
 
-        std::list<Stats::Info *> &allStats = Stats::statsList();
-        std::list<Stats::Info *>::iterator it;
+        std::list<gem5::statistics::Info *> &allStats = gem5::statistics::statsList();
+        std::list<gem5::statistics::Info *>::iterator it;
         
         for( it = allStats.begin(); it != allStats.end(); it++ )
         {
-            Stats::Info* curStat = (*it);
+            gem5::statistics::Info* curStat = (*it);
 
             if( curStat->name == fmt.str() || curStat->name == fmt2.str() )
             {
-                Stats::ScalarInfo *scalar = (Stats::ScalarInfo *)curStat;
+                gem5::statistics::ScalarInfo *scalar = (gem5::statistics::ScalarInfo *)curStat;
 
                 rv = (unsigned int)scalar->total();
             }
         }
     }
 
-    std::list<Stats::Info *> &allStats = Stats::statsList();
-    std::list<Stats::Info *>::iterator it;
+    std::list<gem5::statistics::Info *> &allStats = gem5::statistics::statsList();
+    std::list<gem5::statistics::Info *>::iterator it;
     
     for( it = allStats.begin(); it != allStats.end(); it++ )
     {
-        Stats::Info* curStat = (*it);
+        gem5::statistics::Info* curStat = (*it);
 
         if( curStat->name == fmt.str() || curStat->name == fmt2.str() )
         {
-            Stats::ScalarInfo *scalar = (Stats::ScalarInfo *)curStat;
+            gem5::statistics::ScalarInfo *scalar = (gem5::statistics::ScalarInfo *)curStat;
 
             rv = (unsigned int)scalar->total();
         }

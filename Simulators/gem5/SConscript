@@ -31,13 +31,16 @@
 
 Import('*')
 
-if 'TARGET_ISA' in env and not 'NVMAIN_BUILD' in env:
+if "nvmain" in env['EXTRAS'].lower() and not 'NVMAIN_BUILD' in env:
     env.Append(CPPPATH=Dir('.'))
+    # check whether this has sideeffects
+    # env.Append(CPPDEFINES=['ISAIS' + env['TARGET_ISA'].lower()])
+    env.Append(CPPDEFINES=['ISAISarm'])
 
     Source('nvmain_mem.cc')
 
     DebugFlag('NVMain')
     DebugFlag('NVMainMin')
 
-    SimObject('NVMainMemory.py')
+    SimObject('NVMainMemory.py', sim_objects=['NVMainMemory'])
 
