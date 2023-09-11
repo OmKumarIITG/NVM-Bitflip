@@ -21,6 +21,16 @@ To build:
 ./build/ARM/gem5.opt configs/deprecated/example/fs.py --bootloader system/arm/bootloader/arm64/boot.arm64 --caches --l2cache --cpu-type=TimingSimpleCPU --mem-type=NVMainMemory --nvmain-config=path/to/nvmain/Config/PCM_ISSCC_2012_4GB.config
 ```
 
+* test Linux with
+```sh
+./build/ARM/gem5.opt configs/deprecated/example/fs.py --kernel=../linux/vmlinux --disk-image=../ubuntu-18.04-arm64-docker.img \ 
+     --bootloader system/arm/bootloader/arm64/boot.arm64 --caches --l2cache --cpu-type=TimingSimpleCPU --mem-type=NVMainMemory --nvmain-config=path/to/nvmain/Config/PCM_ISSCC_2012_4GB.config
+```
+and connect via 
+```sh
+telnet 127.0.0.1 3456
+```
+
 
 # The gem5 Simulator
 
