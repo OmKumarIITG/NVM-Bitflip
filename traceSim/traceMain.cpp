@@ -69,7 +69,6 @@ TraceMain::TraceMain( )
 
 TraceMain::~TraceMain( )
 {
-
 }
 
 int TraceMain::RunTrace( int argc, char *argv[] )

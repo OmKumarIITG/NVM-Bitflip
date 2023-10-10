@@ -34,15 +34,14 @@
 #ifndef __TRACELINE_H__
 #define __TRACELINE_H__
 
-#include "include/NVMainRequest.h"
 #include "include/NVMAddress.h"
 #include "include/NVMTypes.h"
+#include "include/NVMainRequest.h"
 
 namespace NVM {
 
-class TraceLine
-{
-  public:
+class TraceLine {
+   public:
     TraceLine();
     ~TraceLine();
     
@@ -68,4 +67,4 @@ class TraceLine
 
 };
 
-#endif 
+#endif

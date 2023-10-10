@@ -35,27 +35,19 @@
 
 using namespace NVM;
 
-NVMainTraceWriter::NVMainTraceWriter( )
-{
+NVMainTraceWriter::NVMainTraceWriter() {}
 
-}
+NVMainTraceWriter::~NVMainTraceWriter() {}
 
-NVMainTraceWriter::~NVMainTraceWriter( )
-{
-
-}
-
-void NVMainTraceWriter::SetTraceFile( std::string file )
-{
+void NVMainTraceWriter::SetTraceFile(std::string file) {
     // Note: This function assumes an absolute path is given, otherwise
-    // the current directory is used. 
+    // the current directory is used.
 
     traceFile = file;
 
-    trace.open( traceFile.c_str( ) );
+    trace.open(traceFile.c_str());
 
-    if( !trace.is_open( ) )
-    {
+    if (!trace.is_open()) {
         std::cout << "Warning: Could not open trace file " << file
                   << ". Output will be suppressed." << std::endl;
     }
@@ -64,50 +56,46 @@ void NVMainTraceWriter::SetTraceFile( std::string file )
     trace << "NVMV1" << std::endl;
 }
 
-std::string NVMainTraceWriter::GetTraceFile( )
-{
+std::string NVMainTraceWriter::GetTraceFile() {
     return traceFile;
 }
 
-bool NVMainTraceWriter::SetNextAccess( TraceLine *nextAccess )
-{
+bool NVMainTraceWriter::SetNextAccess(TraceLine* nextAccess) {
     bool rv = false;
 
-    if( trace.is_open( ) )
-    {
-        WriteTraceLine( trace, nextAccess );
+    if (trace.is_open()) {
+        WriteTraceLine(trace, nextAccess);
         rv = trace.good();
     }
 
-    if( this->GetEcho() )
-    {
-        WriteTraceLine( std::cout, nextAccess );
+    if (this->GetEcho()) {
+        WriteTraceLine(std::cout, nextAccess);
         rv = true;
     }
 
     return rv;
 }
 
-void NVMainTraceWriter::WriteTraceLine( std::ostream& stream, TraceLine *line )
-{
-    NVMDataBlock& data = line->GetData( );
-    NVMDataBlock& oldData = line->GetOldData( );
+void NVMainTraceWriter::WriteTraceLine(std::ostream& stream, TraceLine* line) {
+    NVMDataBlock& data = line->GetData();
+    NVMDataBlock& oldData = line->GetOldData();
 
     /* Only print reads or writes. */
-    if( line->GetOperation() != READ && line->GetOperation() != WRITE )
-        return;
+    if (line->GetOperation() != READ && line->GetOperation() != WRITE) {
+	 return;
+    }
 
     /* Print memory cycle. */
-    stream << line->GetCycle( ) << " ";
+    stream << line->GetCycle() << " ";
 
     /* Print the operation type */
-    if( line->GetOperation( ) == READ )
+    if(line->GetOperation() == READ)
         stream << "R ";
-    else if( line->GetOperation( ) == WRITE )
+    else if(line->GetOperation() == WRITE)
         stream << "W ";
 
     /* Print address */
-    stream << std::hex << "0x" << line->GetAddress( ).GetPhysicalAddress( ) 
+    stream << std::hex << "0x" << line->GetAddress().GetPhysicalAddress()
            << std::dec << " ";
 
     /* Print data. */
@@ -117,6 +105,5 @@ void NVMainTraceWriter::WriteTraceLine( std::ostream& stream, TraceLine *line )
     stream << oldData << " ";
 
     /* Print the thread ID */
-    stream << line->GetThreadId( ) << std::endl;
+    stream << line->GetThreadId() << std::endl;
 }
-

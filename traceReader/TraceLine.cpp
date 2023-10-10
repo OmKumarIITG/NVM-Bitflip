@@ -35,13 +35,12 @@
 
 using namespace NVM;
 
-TraceLine::TraceLine( )
-{
+TraceLine::TraceLine() {
     /*
      *  Set the address to some default bad value so it is not read by
      *  the memory simulator before it is set by the trace reader.
      */
-    address.SetPhysicalAddress( 0xDEADC0DE0BADC0DEULL );
+    address.SetPhysicalAddress(0xDEADC0DE0BADC0DEULL);
     operation = NOP;
     cycle = 0;
     threadId = 0;
@@ -64,33 +63,25 @@ void TraceLine::SetLine( NVMAddress& addr, OpType op, ncycle_t cy, NVMDataBlock&
 }
 
 /* Get the address of the memory operation. */
-NVMAddress& TraceLine::GetAddress( )
-{
-    return address;
-}
+NVMAddress& TraceLine::GetAddress() { return address; }
 
 /* Get the memory command of the operation. */
-OpType TraceLine::GetOperation( )
-{
+OpType TraceLine::GetOperation() {
     return operation;
 }
 
-ncycle_t TraceLine::GetCycle( ) 
-{
+ncycle_t TraceLine::GetCycle() {
     return cycle;
 }
 
-NVMDataBlock& TraceLine::GetData( )
-{
+NVMDataBlock& TraceLine::GetData() {
     return data;
 }
 
-NVMDataBlock& TraceLine::GetOldData( )
-{
+NVMDataBlock& TraceLine::GetOldData() {
     return oldData;
 }
 
-ncounters_t TraceLine::GetThreadId( )
-{
+ncounters_t TraceLine::GetThreadId() {
     return threadId;
 }
