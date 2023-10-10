@@ -46,5 +46,5 @@ if "nvmain" in env['EXTRAS'].lower() and not 'NVMAIN_BUILD' in env:
 
     SimObject('NVMainMemory.py', sim_objects=['NVMainMemory'])
     SimObject('NVMainWritePMU.py', sim_objects=['NVMainWritePMU'])
-    SimObject('NVMainReadPMU.py'. sim_objects=['NVMainReadPMU'])
+    SimObject('NVMainReadPMU.py', sim_objects=['NVMainReadPMU'])
 
