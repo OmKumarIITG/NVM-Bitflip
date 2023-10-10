@@ -85,12 +85,13 @@ NVMainMemory::NVMainMemory(const Params *p)
 
     m_nvmainConfigPath = p->config;
 
-    m_nvmainConfig = new Config( );
+    m_nvmainConfig = new Config();
 
-    m_nvmainConfig->Read( m_nvmainConfigPath );
-    std::cout << "NVMainControl: Reading NVMain config file: " << m_nvmainConfigPath << "." << std::endl;
+    m_nvmainConfig->Read(m_nvmainConfigPath);
+    std::cout << "NVMainControl: Reading NVMain config file: "
+              << m_nvmainConfigPath << "." << std::endl;
 
-    clock = clockPeriod( );
+    clock = clockPeriod();
 
     m_avgAtomicLatency = 100.0f;
     m_numAtomicAccesses = 0;
@@ -111,56 +112,52 @@ NVMainMemory::NVMainMemory(const Params *p)
     cfgparams = (char *)p->configparams.c_str();
     cfgvalues = (char *)p->configvalues.c_str();
 
-    for( cparam = strtok_r( cfgparams, ",", &saveptr1 ), cvalue = strtok_r( cfgvalues, ",", &saveptr2 )
-           ; (cparam && cvalue) ; cparam = strtok_r( NULL, ",", &saveptr1 ), cvalue = strtok_r( NULL, ",", &saveptr2) )
-    {
-        std::cout << "NVMain: Overriding parameter `" << cparam << "' with `" << cvalue << "'" << std::endl;
-        m_nvmainConfig->SetValue( cparam, cvalue );
+    for (cparam = strtok_r(cfgparams, ",", &saveptr1),
+        cvalue = strtok_r(cfgvalues, ",", &saveptr2);
+         (cparam && cvalue); cparam = strtok_r(NULL, ",", &saveptr1),
+        cvalue = strtok_r(NULL, ",", &saveptr2)) {
+        std::cout << "NVMain: Overriding parameter `" << cparam << "' with `"
+                  << cvalue << "'" << std::endl;
+        m_nvmainConfig->SetValue(cparam, cvalue);
     }
 
-   BusWidth = m_nvmainConfig->GetValue( "BusWidth" );
-   tBURST = m_nvmainConfig->GetValue( "tBURST" );
-   RATE = m_nvmainConfig->GetValue( "RATE" );
+    BusWidth = m_nvmainConfig->GetValue("BusWidth");
+    tBURST = m_nvmainConfig->GetValue("tBURST");
+    RATE = m_nvmainConfig->GetValue("RATE");
 
-   lastWakeup = curTick();
+    lastWakeup = curTick();
 }
 
-
-NVMainMemory::~NVMainMemory()
-{
+NVMainMemory::~NVMainMemory() {
     std::cout << "NVMain dtor called" << std::endl;
 }
 
-
-void
-NVMainMemory::init()
-{
+void NVMainMemory::init() {
     if (!port.isConnected()) {
         fatal("NVMainMemory %s is unconnected!\n", name());
     } else {
         port.sendRangeChange();
     }
 
-    if( masterInstance == NULL )
-    {
+    if (masterInstance == NULL) {
         masterInstance = this;
 
-        m_nvmainPtr = new NVM::NVMain( );
-        m_statsPtr = new NVM::Stats( );
-        m_nvmainSimInterface = new NVM::Gem5Interface( );
-        m_nvmainEventQueue = new NVM::EventQueue( );
-        m_nvmainGlobalEventQueue = new NVM::GlobalEventQueue( );
-        m_tagGenerator = new NVM::TagGenerator( 1000 );
+        m_nvmainPtr = new NVM::NVMain();
+        m_statsPtr = new NVM::Stats();
+        m_nvmainSimInterface = new NVM::Gem5Interface();
+        m_nvmainEventQueue = new NVM::EventQueue();
+        m_nvmainGlobalEventQueue = new NVM::GlobalEventQueue();
+        m_tagGenerator = new NVM::TagGenerator(1000);
 
-        m_nvmainConfig->SetSimInterface( m_nvmainSimInterface );
+        m_nvmainConfig->SetSimInterface(m_nvmainSimInterface);
 
         statPrinter.nvmainPtr = m_nvmainPtr;
         statReseter.nvmainPtr = m_nvmainPtr;
 
-        if( m_nvmainConfig->KeyExists( "StatsFile" ) )
-        {
-            statPrinter.statStream.open( m_nvmainConfig->GetString( "StatsFile" ).c_str(),
-                                         std::ofstream::out | std::ofstream::app );
+        if (m_nvmainConfig->KeyExists("StatsFile")) {
+            statPrinter.statStream.open(
+                m_nvmainConfig->GetString("StatsFile").c_str(),
+                std::ofstream::out | std::ofstream::app);
         }
 
         statPrinter.memory = this;
@@ -170,55 +167,48 @@ NVMainMemory::init()
         gem5::statistics::registerDumpCallback( [this](){ statPrinter.process(); } );
         gem5::statistics::registerResetCallback( [this](){ statReseter.process(); } );
 
-        SetEventQueue( m_nvmainEventQueue );
-        SetStats( m_statsPtr );
-        SetTagGenerator( m_tagGenerator );
+        SetEventQueue(m_nvmainEventQueue);
+        SetStats(m_statsPtr);
+        SetTagGenerator(m_tagGenerator);
 
-        m_nvmainGlobalEventQueue->SetFrequency( m_nvmainConfig->GetEnergy( "CPUFreq" ) * 1000000.0 );
-        SetGlobalEventQueue( m_nvmainGlobalEventQueue );
+        m_nvmainGlobalEventQueue->SetFrequency(
+            m_nvmainConfig->GetEnergy("CPUFreq") * 1000000.0);
+        SetGlobalEventQueue(m_nvmainGlobalEventQueue);
 
         // TODO: Confirm global event queue frequency is the same as this SimObject's clock.
 
         /*  Add any specified hooks */
-        std::vector<std::string>& hookList = m_nvmainConfig->GetHooks( );
+        std::vector<std::string> &hookList = m_nvmainConfig->GetHooks();
 
-        for( size_t i = 0; i < hookList.size( ); i++ )
-        {
+        for (size_t i = 0; i < hookList.size(); i++) {
             std::cout << "Creating hook " << hookList[i] << std::endl;
 
-            NVMObject *hook = HookFactory::CreateHook( hookList[i] );
+            NVMObject *hook = HookFactory::CreateHook(hookList[i]);
 
-            if( hook != NULL )
-            {
-                AddHook( hook );
-                hook->SetParent( this );
-                hook->Init( m_nvmainConfig );
-            }
-            else
-            {
+            if (hook != NULL) {
+                AddHook(hook);
+                hook->SetParent(this);
+                hook->Init(m_nvmainConfig);
+            } else {
                 std::cout << "Warning: Could not create a hook named `"
-                    << hookList[i] << "'." << std::endl;
+                          << hookList[i] << "'." << std::endl;
             }
         }
 
         /* Setup child and parent modules. */
-        AddChild( m_nvmainPtr );
-        m_nvmainPtr->SetParent( this );
-        m_nvmainGlobalEventQueue->AddSystem( m_nvmainPtr, m_nvmainConfig );
-        m_nvmainPtr->SetConfig( m_nvmainConfig );
+        AddChild(m_nvmainPtr);
+        m_nvmainPtr->SetParent(this);
+        m_nvmainGlobalEventQueue->AddSystem(m_nvmainPtr, m_nvmainConfig);
+        m_nvmainPtr->SetConfig(m_nvmainConfig);
 
         masterInstance->allInstances.push_back(this);
-    }
-    else
-    {
+    } else {
         masterInstance->allInstances.push_back(this);
         masterInstance->otherInstance = this;
     }
 }
 
-
-void NVMainMemory::startup()
-{
+void NVMainMemory::startup() {
     DPRINTF(NVMain, "NVMainMemory: startup() called.\n");
     DPRINTF(NVMainMin, "NVMainMemory: startup() called.\n");
 
@@ -233,9 +223,7 @@ void NVMainMemory::startup()
     lastWakeup = curTick();
 }
 
-
-void NVMainMemory::wakeup()
-{
+void NVMainMemory::wakeup() {
     DPRINTF(NVMain, "NVMainMemory: wakeup() called.\n");
     DPRINTF(NVMainMin, "NVMainMemory: wakeup() called.\n");
 
@@ -255,53 +243,41 @@ NVMainMemory::getPort(const std::string& if_name, PortID idx)
     }
 }
 
-
-void NVMainMemory::NVMainStatPrinter::process()
-{
+void NVMainMemory::NVMainStatPrinter::process() {
     assert(nvmainPtr != NULL);
 
     assert(curTick() >= memory->lastWakeup);
     Tick stepCycles = (curTick() - memory->lastWakeup) / memory->clock;
 
-    memory->m_nvmainGlobalEventQueue->Cycle( stepCycles );
+    memory->m_nvmainGlobalEventQueue->Cycle(stepCycles);
 
     nvmainPtr->CalculateStats();
-    std::ostream& refStream = (statStream.is_open()) ? statStream : std::cout;
-    nvmainPtr->GetStats()->PrintAll( refStream );
+    std::ostream &refStream = (statStream.is_open()) ? statStream : std::cout;
+    nvmainPtr->GetStats()->PrintAll(refStream);
 }
 
-
-void NVMainMemory::NVMainStatReseter::process()
-{
+void NVMainMemory::NVMainStatReseter::process() {
     assert(nvmainPtr != NULL);
 
     nvmainPtr->ResetStats();
-    nvmainPtr->GetStats()->ResetAll( );
+    nvmainPtr->GetStats()->ResetAll();
 }
 
+NVMainMemory::MemoryPort::MemoryPort(const std::string &_name,
+                                     NVMainMemory &_memory)
+    : SlavePort(_name, &_memory), memory(_memory), forgdb(_memory) {}
 
-NVMainMemory::MemoryPort::MemoryPort(const std::string& _name, NVMainMemory& _memory)
-    : SlavePort(_name, &_memory), memory(_memory), forgdb(_memory)
-{
-
-}
-
-
-AddrRangeList NVMainMemory::MemoryPort::getAddrRanges() const
-{
+AddrRangeList NVMainMemory::MemoryPort::getAddrRanges() const {
     AddrRangeList ranges;
     ranges.push_back(memory.getAddrRange());
     return ranges;
 }
 
-
-void
-NVMainMemory::SetRequestData(NVMainRequest *request, PacketPtr pkt)
-{
+void NVMainMemory::SetRequestData(NVMainRequest *request, PacketPtr pkt) {
     uint8_t *hostAddr;
 
-    request->data.SetSize( pkt->getSize() );
-    request->oldData.SetSize( pkt->getSize() );
+    request->data.SetSize(pkt->getSize());
+    request->oldData.SetSize(pkt->getSize());
 
     if (pkt->isRead())
     {
@@ -313,11 +289,10 @@ NVMainMemory::SetRequestData(NVMainRequest *request, PacketPtr pkt)
         dataPkt->allocate();
         doFunctionalAccess(dataPkt);
 
-        hostAddr = new uint8_t[ pkt->getSize() ];
-        memcpy( hostAddr, dataPkt->getPtr<uint8_t>(), pkt->getSize() );
+        hostAddr = new uint8_t[pkt->getSize()];
+        memcpy(hostAddr, dataPkt->getPtr<uint8_t>(), pkt->getSize());
 
-        for(int i = 0; i < pkt->getSize(); i++ )
-        {
+        for (int i = 0; i < pkt->getSize(); i++) {
             request->oldData.SetByte(i, *(hostAddr + i));
             request->data.SetByte(i, *(hostAddr + i));
         }
@@ -335,31 +310,26 @@ NVMainMemory::SetRequestData(NVMainRequest *request, PacketPtr pkt)
         dataPkt->allocate();
         doFunctionalAccess(dataPkt);
 
-        uint8_t *hostAddrT = new uint8_t[ pkt->getSize() ];
-        memcpy( hostAddrT, dataPkt->getPtr<uint8_t>(), pkt->getSize() );
+        uint8_t *hostAddrT = new uint8_t[pkt->getSize()];
+        memcpy(hostAddrT, dataPkt->getPtr<uint8_t>(), pkt->getSize());
 
-        hostAddr = new uint8_t[ pkt->getSize() ];
-        memcpy( hostAddr, pkt->getPtr<uint8_t>(), pkt->getSize() );
+        hostAddr = new uint8_t[pkt->getSize()];
+        memcpy(hostAddr, pkt->getPtr<uint8_t>(), pkt->getSize());
 
-        for(int i = 0; i < pkt->getSize(); i++ )
-        {
+        for (int i = 0; i < pkt->getSize(); i++) {
             request->oldData.SetByte(i, *(hostAddrT + i));
             request->data.SetByte(i, *(hostAddr + i));
         }
 
         delete dataPkt;
-        //delete dataReq;
-        delete [] hostAddrT;
-        delete [] hostAddr;
+        // delete dataReq;
+        delete[] hostAddrT;
+        delete[] hostAddr;
     }
 }
 
-
-Tick
-NVMainMemory::MemoryPort::recvAtomic(PacketPtr pkt)
-{
-    if (pkt->cacheResponding())
-        return 0;
+Tick NVMainMemory::MemoryPort::recvAtomic(PacketPtr pkt) {
+    if (pkt->cacheResponding()) return 0;
 
     /*
      * calculate the latency. Now it is only random number
@@ -372,14 +342,12 @@ NVMainMemory::MemoryPort::recvAtomic(PacketPtr pkt)
     /*
      *  if NVMain also needs the packet to warm up the inline cache, create the request
      */
-    if( memory.NVMainWarmUp )
-    {
-        NVMainRequest *request = new NVMainRequest( );
+    if (memory.NVMainWarmUp) {
+        NVMainRequest *request = new NVMainRequest();
 
-        memory.SetRequestData( request, pkt );
+        memory.SetRequestData(request, pkt);
 
-        if( !pkt->isRead() && !pkt->isWrite() )
-        {
+        if (!pkt->isRead() && !pkt->isWrite()) {
             // if it is neither read nor write, just return
             // well, speed may suffer a little bit...
             return latency;
@@ -410,25 +378,19 @@ NVMainMemory::MemoryPort::recvAtomic(PacketPtr pkt)
     return latency;
 }
 
-
-void
-NVMainMemory::MemoryPort::recvFunctional(PacketPtr pkt)
-{
+void NVMainMemory::MemoryPort::recvFunctional(PacketPtr pkt) {
     pkt->pushLabel(memory.name());
 
     memory.doFunctionalAccess(pkt);
 
-    for( std::deque<PacketPtr>::iterator i = memory.responseQueue.begin();
-         i != memory.responseQueue.end(); ++i )
+    for (std::deque<PacketPtr>::iterator i = memory.responseQueue.begin();
+         i != memory.responseQueue.end(); ++i)
         pkt->trySatisfyFunctional(*i);
 
     pkt->popLabel();
 }
 
-
-bool
-NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt)
-{
+bool NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt) {
     /* added by Tao @ 01/24/2013, just copy the code from SimpleMemory */
     /// @todo temporary hack to deal with memory corruption issues until
     /// 4-phase transactions are complete
@@ -455,7 +417,7 @@ NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt)
 
             memory.responseQueue.push_back(pkt);
 
-            memory.ScheduleResponse( );
+            memory.ScheduleResponse();
         } else {
             memory.pendingDelete.push_back(pkt);
         }
@@ -464,21 +426,22 @@ NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt)
     }
 
 
-    if (memory.retryRead || memory.retryWrite)
-    {
-        DPRINTF(NVMain, "nvmain_mem.cc: Received request while waiting for retry!\n");
-        DPRINTF(NVMainMin, "nvmain_mem.cc: Received request while waiting for retry!\n");
+    if (memory.retryRead || memory.retryWrite) {
+        DPRINTF(NVMain,
+                "nvmain_mem.cc: Received request while waiting for retry!\n");
+        DPRINTF(NVMainMin,
+                "nvmain_mem.cc: Received request while waiting for retry!\n");
         return false;
     }
 
     // Bus latency is modeled in NVMain.
     pkt->headerDelay = pkt->payloadDelay = 0;
 
-    NVMainRequest *request = new NVMainRequest( );
+    NVMainRequest *request = new NVMainRequest();
 
     bool canQueue, enqueued = false;
 
-    memory.SetRequestData( request, pkt );
+    memory.SetRequestData(request, pkt);
 
     /*
      *  NVMain expects linear addresses, so hack: If we are not the master
@@ -490,12 +453,11 @@ NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt)
      */
     uint64_t addressFixUp = 0;
 #if THE_ISA == X86_ISA
-    if( masterInstance != &memory )
-    {
+    if (masterInstance != &memory) {
         addressFixUp = 0x40000000;
     }
 #elif THE_ISA == ARM_ISA
-    /* 
+    /*
      *  ARM regions are 2GB - 4GB followed by 34 GB - 64 GB. Work for up to
      *  34 GB of memory. Further regions from 512 GB - 992 GB.
      */
@@ -516,19 +478,17 @@ NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt)
     std::vector<NVMObject *>& postHooks = memory.masterInstance->GetHooks( NVMHOOK_POSTISSUE );
     std::vector<NVMObject *>::iterator it;
 
-    canQueue = memory.masterInstance->GetChild( )->IsIssuable( request );
+    canQueue = memory.masterInstance->GetChild()->IsIssuable(request);
 
-    if( canQueue )
-    {
+    if (canQueue) {
         /* Call pre-issue hooks */
-        for( it = preHooks.begin(); it != preHooks.end(); it++ )
-        {
-            (*it)->SetParent( memory.masterInstance );
-            (*it)->IssueCommand( request );
+        for (it = preHooks.begin(); it != preHooks.end(); it++) {
+            (*it)->SetParent(memory.masterInstance);
+            (*it)->IssueCommand(request);
         }
 
-        enqueued = memory.masterInstance->GetChild( )->IssueCommand(request);
-        assert( enqueued == true );
+        enqueued = memory.masterInstance->GetChild()->IssueCommand(request);
+        assert(enqueued == true);
 
         NVMainMemoryRequest *memRequest = new NVMainMemoryRequest;
 
@@ -548,7 +508,7 @@ NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt)
 
             //assert(nextEvent >= currentCycle);
             ncycle_t stepCycles;
-            if( nextEvent > currentCycle )
+            if (nextEvent > currentCycle)
                 stepCycles = nextEvent - currentCycle;
             else
                 stepCycles = 1;
@@ -559,35 +519,34 @@ NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt)
             DPRINTF(NVMain, "NVMainMemory: Rescheduled wake at %d after %d cycles\n", nextWake, stepCycles);
 
             memory.nextEventCycle = nextEvent;
-            memory.ScheduleClockEvent( nextWake );
-        }
-        else if( !masterInstance->clockEvent.scheduled() )
-        {
+            memory.ScheduleClockEvent(nextWake);
+        } else if (!masterInstance->clockEvent.scheduled()) {
             ncycle_t currentCycle = memory.masterInstance->m_nvmainGlobalEventQueue->GetCurrentCycle();
 
-            //assert(nextEvent >= currentCycle);
+            // assert(nextEvent >= currentCycle);
             ncycle_t stepCycles = nextEvent - currentCycle;
-            if( stepCycles == 0 || nextEvent < currentCycle )
-                stepCycles = 1;
+            if (stepCycles == 0 || nextEvent < currentCycle) {
+		 stepCycles = 1;
+	     }
 
             Tick nextWake = curTick() + memory.clock * static_cast<Tick>(stepCycles);
 
             memory.nextEventCycle = nextEvent;
-            memory.ScheduleClockEvent( nextWake );
+            memory.ScheduleClockEvent(nextWake);
         }
 
-        memory.masterInstance->m_request_map.insert( std::pair<NVMainRequest *, NVMainMemoryRequest *>( request, memRequest ) );
+        memory.masterInstance->m_request_map.insert(std::pair<NVMainRequest *, NVMainMemoryRequest *>(request, memRequest));
         memory.m_requests_outstanding++;
 
         /*
-         *  It seems gem5 will block until the packet gets a response, so create a copy of the request, so
-         *  the memory controller has it, then delete the original copy to respond to the packet.
+         *  It seems gem5 will block until the packet gets a response, so create
+         * a copy of the request, so the memory controller has it, then delete
+         * the original copy to respond to the packet.
          */
-        if( request->type == WRITE )
-        {
-            NVMainMemoryRequest *requestCopy = new NVMainMemoryRequest( );
+        if (request->type == WRITE) {
+            NVMainMemoryRequest *requestCopy = new NVMainMemoryRequest();
 
-            requestCopy->request = new NVMainRequest( );
+            requestCopy->request = new NVMainRequest();
             *(requestCopy->request) = *request;
             requestCopy->packet = pkt;
             requestCopy->issueTick = curTick();
@@ -595,33 +554,34 @@ NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt)
 
             memRequest->packet = NULL;
 
-            memory.masterInstance->m_request_map.insert( std::pair<NVMainRequest *, NVMainMemoryRequest *>( requestCopy->request, requestCopy ) );
+            memory.masterInstance->m_request_map.insert(std::pair<NVMainRequest *, NVMainMemoryRequest *>(requestCopy->request, requestCopy));
             memory.m_requests_outstanding++;
 
-            memory.RequestComplete( requestCopy->request );
+            memory.RequestComplete(requestCopy->request);
         }
 
         /* Call post-issue hooks. */
-        if( request != NULL )
-        {
-            for( it = postHooks.begin(); it != postHooks.end(); it++ )
-            {
-                (*it)->SetParent( &memory );
-                (*it)->IssueCommand( request );
+        if (request != NULL) {
+            for (it = postHooks.begin(); it != postHooks.end(); it++) {
+                (*it)->SetParent(&memory);
+                (*it)->IssueCommand(request);
             }
         }
-    }
-    else
-    {
-        DPRINTF(NVMain, "nvmain_mem.cc: Can not enqueue Mem request for 0x%x of type %s\n", request->address.GetPhysicalAddress( ), ((pkt->isRead()) ? "READ" : "WRITE") );
-        DPRINTF(NVMainMin, "nvmain_mem.cc: Can not enqueue Mem request for 0x%x of type %s\n", request->address.GetPhysicalAddress( ), ((pkt->isRead()) ? "READ" : "WRITE") );
+    } else {
+        DPRINTF(
+            NVMain,
+            "nvmain_mem.cc: Can not enqueue Mem request for 0x%x of type %s\n",
+            request->address.GetPhysicalAddress(),
+            ((pkt->isRead()) ? "READ" : "WRITE"));
+        DPRINTF(
+            NVMainMin,
+            "nvmain_mem.cc: Can not enqueue Mem request for 0x%x of type %s\n",
+            request->address.GetPhysicalAddress(),
+            ((pkt->isRead()) ? "READ" : "WRITE"));
 
-        if (pkt->isRead())
-        {
+        if (pkt->isRead()) {
             memory.retryRead = true;
-        }
-        else
-        {
+        } else {
             memory.retryWrite = true;
         }
 
@@ -632,65 +592,45 @@ NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt)
     return enqueued;
 }
 
-
-
-Tick NVMainMemory::doAtomicAccess(PacketPtr pkt)
-{
+Tick NVMainMemory::doAtomicAccess(PacketPtr pkt) {
     access(pkt);
     return static_cast<Tick>(m_avgAtomicLatency);
 }
 
-
-
-void NVMainMemory::doFunctionalAccess(PacketPtr pkt)
-{
-    functionalAccess(pkt);
+void NVMainMemory::doFunctionalAccess(PacketPtr pkt) {
+	functionalAccess(pkt);
 }
 
-
-DrainState NVMainMemory::drain()
-{
-    if( !masterInstance->m_request_map.empty() )
-    {
+DrainState NVMainMemory::drain() {
+    if (!masterInstance->m_request_map.empty()) {
         return DrainState::Draining;
-    }
-    else
-    {
+    } else {
         return DrainState::Drained;
     }
 }
 
-
-void NVMainMemory::MemoryPort::recvRespRetry( )
-{
-    memory.recvRetry( );
+void NVMainMemory::MemoryPort::recvRespRetry() {
+	memory.recvRetry();
 }
 
-
-void NVMainMemory::MemoryPort::recvRetry( )
-{
-    memory.recvRetry( );
+void NVMainMemory::MemoryPort::recvRetry() {
+	memory.recvRetry();
 }
 
-
-void NVMainMemory::recvRetry( )
-{
+void NVMainMemory::recvRetry() {
     DPRINTF(NVMain, "NVMainMemory: recvRetry() called.\n");
     DPRINTF(NVMainMin, "NVMainMemory: recvRetry() called.\n");
 
     retryResp = false;
-    SendResponses( );
+    SendResponses();
 }
 
-
-bool NVMainMemory::RequestComplete(NVM::NVMainRequest *req)
-{
+bool NVMainMemory::RequestComplete(NVM::NVMainRequest *req) {
     bool isRead = (req->type == READ || req->type == READ_PRECHARGE);
     bool isWrite = (req->type == WRITE || req->type == WRITE_PRECHARGE);
 
     /* Ignore bus read/write requests generated by the banks. */
-    if( req->type == BUS_WRITE || req->type == BUS_READ )
-    {
+    if (req->type == BUS_WRITE || req->type == BUS_READ) {
         delete req;
         return true;
     }
@@ -703,29 +643,24 @@ bool NVMainMemory::RequestComplete(NVM::NVMainRequest *req)
     iter = masterInstance->m_request_map.find(req);
     memRequest = iter->second;
 
-    if(!memRequest->atomic)
-    {
+    if (!memRequest->atomic) {
         bool respond = false;
 
-        NVMainMemory *ownerInstance = dynamic_cast<NVMainMemory *>( req->owner );
-        assert( ownerInstance != NULL );
+        NVMainMemory *ownerInstance = dynamic_cast<NVMainMemory *>(req->owner);
+        assert(ownerInstance != NULL);
 
-        if( memRequest->packet )
-        {
+        if (memRequest->packet) {
             respond = memRequest->packet->needsResponse();
             ownerInstance->access(memRequest->packet);
         }
 
-        for( auto retryIter = masterInstance->allInstances.begin(); 
-             retryIter != masterInstance->allInstances.end(); retryIter++ )
-        {
-            if( (*retryIter)->retryRead && (isRead || isWrite) )
-            {
+        for (auto retryIter = masterInstance->allInstances.begin();
+             retryIter != masterInstance->allInstances.end(); retryIter++) {
+            if ((*retryIter)->retryRead && (isRead || isWrite)) {
                 (*retryIter)->retryRead = false;
                 (*retryIter)->port.sendRetryReq();
             }
-            if( (*retryIter)->retryWrite && (isRead || isWrite) )
-            {
+            if ((*retryIter)->retryWrite && (isRead || isWrite)) {
                 (*retryIter)->retryWrite = false;
                 (*retryIter)->port.sendRetryReq();
             }
@@ -733,61 +668,51 @@ bool NVMainMemory::RequestComplete(NVM::NVMainRequest *req)
 
         DPRINTF(NVMain, "Completed Mem request for 0x%x of type %s\n", req->address.GetPhysicalAddress( ), (isRead ? "READ" : "WRITE"));
 
-        if(respond)
-        {
+        if (respond) {
             ownerInstance->responseQueue.push_back(memRequest->packet);
-            ownerInstance->ScheduleResponse( );
+            ownerInstance->ScheduleResponse();
 
             delete req;
             delete memRequest;
-        }
-        else
-        {
-            if( memRequest->packet )
+        } else {
+            if (memRequest->packet)
                 ownerInstance->pendingDelete.push_back(memRequest->packet);
 
-            CheckDrainState( );
+            CheckDrainState();
 
             delete req;
             delete memRequest;
         }
-    }
-    else
-    {
+    } else {
         delete req;
         delete memRequest;
     }
 
-
     masterInstance->m_request_map.erase(iter);
-    //assert(m_requests_outstanding > 0);
+    // assert(m_requests_outstanding > 0);
     m_requests_outstanding--;
 
     return true;
 }
 
+void NVMainMemory::SendResponses() {
+    if (responseQueue.empty() || retryResp == true) {
+	return;
+    }
 
-void NVMainMemory::SendResponses( )
-{
-    if( responseQueue.empty() || retryResp == true )
-        return;
+    bool success = port.sendTimingResp(responseQueue.front());
 
-
-    bool success = port.sendTimingResp( responseQueue.front() );
-
-    if( success )
-    {
+    if (success) {
         DPRINTF(NVMain, "NVMainMemory: Sending response.\n");
 
-        responseQueue.pop_front( );
+        responseQueue.pop_front();
 
-        if( !responseQueue.empty( ) )
-            ScheduleResponse( );
+        if (!responseQueue.empty()) {
+	     ScheduleResponse();
+	 }
 
-        CheckDrainState( );
-    }
-    else
-    {
+        CheckDrainState();
+    } else {
         DPRINTF(NVMain, "NVMainMemory: Retrying response.\n");
         DPRINTF(NVMainMin, "NVMainMemory: Retrying response.\n");
 
@@ -795,93 +720,79 @@ void NVMainMemory::SendResponses( )
     }
 }
 
-
-void NVMainMemory::CheckDrainState( )
-{
-    if( drainManager != NULL && masterInstance->m_request_map.empty() )
-    {
+void NVMainMemory::CheckDrainState() {
+    if (drainManager != NULL && masterInstance->m_request_map.empty()) {
         DPRINTF(NVMain, "NVMainMemory: Drain completed.\n");
         DPRINTF(NVMainMin, "NVMainMemory: Drain completed.\n");
 
-        drainManager->signalDrainDone( );
+        drainManager->signalDrainDone();
         drainManager = NULL;
     }
 }
 
-
-void NVMainMemory::ScheduleResponse( )
-{
-    if( !respondEvent.scheduled( ) )
-        schedule(respondEvent, curTick() + clock);
+void NVMainMemory::ScheduleResponse() {
+    if (!respondEvent.scheduled()) {
+	 schedule(respondEvent, curTick() + clock);
+    }
 }
 
-
-void NVMainMemory::ScheduleClockEvent( Tick nextWake )
-{
-    if( !masterInstance->clockEvent.scheduled() )
+void NVMainMemory::ScheduleClockEvent(Tick nextWake) {
+    if (!masterInstance->clockEvent.scheduled())
         schedule(masterInstance->clockEvent, nextWake);
     else
         reschedule(masterInstance->clockEvent, nextWake);
 }
 
-
-void NVMainMemory::serialize(CheckpointOut &cp) const
-{
-    if (masterInstance != this)
-        return;
+void NVMainMemory::serialize(CheckpointOut &cp) const {
+    if (masterInstance != this) {
+	 return;
+    }
 
     std::string nvmain_chkpt_dir = "";
 
-    if( m_nvmainConfig->KeyExists( "CheckpointDirectory" ) )
-        nvmain_chkpt_dir = m_nvmainConfig->GetString( "CheckpointDirectory" );
+    if (m_nvmainConfig->KeyExists("CheckpointDirectory"))
+        nvmain_chkpt_dir = m_nvmainConfig->GetString("CheckpointDirectory");
 
-    if( nvmain_chkpt_dir != "" )
-    {
+    if (nvmain_chkpt_dir != "") {
         std::cout << "NVMainMemory: Writing to checkpoint directory " << nvmain_chkpt_dir << std::endl;
 
-        m_nvmainPtr->CreateCheckpoint( nvmain_chkpt_dir );
+        m_nvmainPtr->CreateCheckpoint(nvmain_chkpt_dir);
     }
 }
 
-
-void NVMainMemory::unserialize(CheckpointIn &cp)
-{
-    if (masterInstance != this)
-        return;
+void NVMainMemory::unserialize(CheckpointIn &cp) {
+    if (masterInstance != this) {
+	 return;
+    }
 
     std::string nvmain_chkpt_dir = "";
 
-    if( m_nvmainConfig->KeyExists( "CheckpointDirectory" ) )
-        nvmain_chkpt_dir = m_nvmainConfig->GetString( "CheckpointDirectory" );
+    if (m_nvmainConfig->KeyExists("CheckpointDirectory"))
+        nvmain_chkpt_dir = m_nvmainConfig->GetString("CheckpointDirectory");
 
-    if( nvmain_chkpt_dir != "" )
-    {
+    if (nvmain_chkpt_dir != "") {
         std::cout << "NVMainMemory: Reading from checkpoint directory " << nvmain_chkpt_dir << std::endl;
 
-        m_nvmainPtr->RestoreCheckpoint( nvmain_chkpt_dir );
+        m_nvmainPtr->RestoreCheckpoint(nvmain_chkpt_dir);
     }
 }
 
-
-void NVMainMemory::tick( )
-{
+void NVMainMemory::tick() {
     // Cycle memory controller
-    if (masterInstance == this)
-    {
+    if (masterInstance == this) {
         /* Keep NVMain in sync with gem5. */
         assert(curTick() >= lastWakeup);
         ncycle_t stepCycles = (curTick() - lastWakeup) / clock;
 
         DPRINTF(NVMain, "NVMainMemory: Stepping %d cycles\n", stepCycles);
-        m_nvmainGlobalEventQueue->Cycle( stepCycles );
+        m_nvmainGlobalEventQueue->Cycle(stepCycles);
 
         lastWakeup = curTick();
 
         ncycle_t nextEvent;
 
         nextEvent = m_nvmainGlobalEventQueue->GetNextEvent(NULL);
-        if( nextEvent != std::numeric_limits<ncycle_t>::max() )
-        {
+        if (nextEvent != std::numeric_limits<ncycle_t>::max()) {
             ncycle_t currentCycle = m_nvmainGlobalEventQueue->GetCurrentCycle();
 
             assert(nextEvent >= currentCycle);
@@ -893,7 +804,7 @@ void NVMainMemory::tick( )
             DPRINTF(NVMain, "NVMainMemory: Schedule wake for %d\n", nextWake);
 
             nextEventCycle = nextEvent;
-            ScheduleClockEvent( nextWake );
+            ScheduleClockEvent(nextWake);
         }
     }
 }

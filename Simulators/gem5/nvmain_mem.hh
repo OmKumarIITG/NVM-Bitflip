@@ -45,7 +45,6 @@
 #ifndef __MEM_NVMAIN_MEM_HH__
 #define __MEM_NVMAIN_MEM_HH__
 
-
 #include <fstream>
 #include <ostream>
 
@@ -108,7 +107,7 @@ class NVMainMemory : public gem5::memory::AbstractMemory, public NVM::NVMObject
     {
         friend class NVMainMemory;
 
-      public:
+       public:
         NVMainMemory *memory;
         NVMainMemory *forgdb;
 
@@ -179,16 +178,13 @@ class NVMainMemory : public gem5::memory::AbstractMemory, public NVM::NVMObject
     void startup();
     void wakeup();
 
-    const Params *
-    params() const
-    {
-        return dynamic_cast<const Params *>(&_params);
+    const Params *params() const {
+        return dynamic_cast<const Params *>(_params);
     }
 
+    bool RequestComplete(NVM::NVMainRequest *req);
 
-    bool RequestComplete( NVM::NVMainRequest *req );
-
-    void Cycle(NVM::ncycle_t) { }
+    void Cycle(NVM::ncycle_t) {}
 
     gem5::DrainState drain() override;
 
@@ -209,8 +205,6 @@ class NVMainMemory : public gem5::memory::AbstractMemory, public NVM::NVMObject
     gem5::Tick doAtomicAccess(gem5::PacketPtr pkt);
     void doFunctionalAccess(gem5::PacketPtr pkt);
     void recvRetry();
-
 };
 
 #endif
-
