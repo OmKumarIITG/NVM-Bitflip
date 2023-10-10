@@ -42,8 +42,8 @@
  *
  */
 
-#include "SimInterface/Gem5Interface/Gem5Interface.h"
 #include "Simulators/gem5/nvmain_mem.hh"
+#include "SimInterface/Gem5Interface/Gem5Interface.h"
 #include "Utils/HookFactory.h"
 
 #include "base/random.hh"
@@ -52,6 +52,8 @@
 #include "debug/NVMainMin.hh"
 //#include "config/the_isa.hh"
 #include "base/trace.hh"
+#include "nvmain_write_pmu.hh"
+#include "nvmain_read_pmu.hh"
 
 using namespace NVM;
 using namespace gem5;
@@ -254,6 +256,7 @@ void NVMainMemory::NVMainStatPrinter::process() {
     nvmainPtr->CalculateStats();
     std::ostream &refStream = (statStream.is_open()) ? statStream : std::cout;
     nvmainPtr->GetStats()->PrintAll(refStream);
+    delete nvmainPtr;
 }
 
 void NVMainMemory::NVMainStatReseter::process() {
@@ -353,6 +356,17 @@ Tick NVMainMemory::MemoryPort::recvAtomic(PacketPtr pkt) {
             return latency;
         }
 
+        if(pkt->isWrite()){
+            if(Nvmain_Write_PMU::instance != 0){
+                Nvmain_Write_PMU::instance->triggerWrite();
+            }
+        }
+        if(pkt->isRead()){
+            if(Nvmain_Read_PMU::instance != 0){
+                Nvmain_Read_PMU::instance->triggerRead();
+            }
+        }
+
         /* initialize the request so that NVMain can correctly serve it */
         request->access = UNKNOWN_ACCESS;
         request->address.SetPhysicalAddress(pkt->req->getPaddr());
@@ -425,6 +439,16 @@ bool NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt) {
         return true;
     }
 
+    if(pkt->isWrite()){
+            if(Nvmain_Write_PMU::instance != 0){
+                Nvmain_Write_PMU::instance->triggerWrite();
+            }
+        }
+    if(pkt->isRead()){
+            if(Nvmain_Read_PMU::instance != 0){
+                Nvmain_Read_PMU::instance->triggerRead();
+            }
+        }
 
     if (memory.retryRead || memory.retryWrite) {
         DPRINTF(NVMain,
@@ -506,7 +530,7 @@ bool NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt) {
         {
             ncycle_t currentCycle = memory.masterInstance->m_nvmainGlobalEventQueue->GetCurrentCycle();
 
-            //assert(nextEvent >= currentCycle);
+            // assert(nextEvent >= currentCycle);
             ncycle_t stepCycles;
             if (nextEvent > currentCycle)
                 stepCycles = nextEvent - currentCycle;
@@ -809,10 +833,6 @@ void NVMainMemory::tick() {
     }
 }
 
-
-NVMainMemory *
-NVMainMemoryParams::create() const
-{
+NVMainMemory *NVMainMemoryParams::create() const {
     return new NVMainMemory(this);
 }
-

@@ -98,6 +98,10 @@ void NVMainTraceWriter::WriteTraceLine(std::ostream& stream, TraceLine* line) {
     stream << std::hex << "0x" << line->GetAddress().GetPhysicalAddress()
            << std::dec << " ";
 
+    /* Print program counter */
+    stream << std::hex << "0x" << line->get_program_counter() << std::dec
+           << " ";
+
     /* Print data. */
     stream << data << " ";
 

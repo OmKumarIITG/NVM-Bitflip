@@ -307,6 +307,7 @@ int TraceMain::RunTrace( int argc, char *argv[] )
 
     delete config;
     delete stats;
+    delete nvmain;
 
     return 0;
 }

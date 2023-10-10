@@ -38,9 +38,13 @@ if "nvmain" in env['EXTRAS'].lower() and not 'NVMAIN_BUILD' in env:
     env.Append(CPPDEFINES=['ISAISarm'])
 
     Source('nvmain_mem.cc')
+    Source('nvmain_write_pmu.cc')
+    Source('nvmain_read_pmu.cc')
 
     DebugFlag('NVMain')
     DebugFlag('NVMainMin')
 
     SimObject('NVMainMemory.py', sim_objects=['NVMainMemory'])
+    SimObject('NVMainWritePMU.py', sim_objects=['NVMainWritePMU'])
+    SimObject('NVMainReadPMU.py'. sim_objects=['NVMainReadPMU'])
 
