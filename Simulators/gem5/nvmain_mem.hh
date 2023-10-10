@@ -179,7 +179,7 @@ class NVMainMemory : public gem5::memory::AbstractMemory, public NVM::NVMObject
     void wakeup();
 
     const Params *params() const {
-        return dynamic_cast<const Params *>(_params);
+        return dynamic_cast<const Params *>(&_params);
     }
 
     bool RequestComplete(NVM::NVMainRequest *req);
