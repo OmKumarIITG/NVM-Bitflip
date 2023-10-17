@@ -4,12 +4,12 @@
 #include <sim/sim_object.hh>
 #include "sim/probe/pmu.hh"
 
-class Nvmain_Write_PMU : public SimObject {
+class Nvmain_Write_PMU : public gem5::SimObject {
    protected:
     /**
      * Add a PMU Probe which notifies about memory writes
      */
-    ProbePoints::PMUUPtr ppMemBusWrites;
+    gem5::probing::PMUUPtr ppMemBusWrites;
 
    public:
     Nvmain_Write_PMU(const Params *p);
