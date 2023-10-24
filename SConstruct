@@ -403,6 +403,15 @@ for variant_path in variant_paths:
 
     # Set up default C++ compiler flags
     if env['GCC'] or env['CLANG']:
+        # Unified Gem5 build feature config flags.
+        tu_dortmund_flag = ARGUMENTS.get("tu_dortmund", 0)
+        if tu_dortmund_flag == "1": # Needs to be compared as argument is string
+            env.Append(CCFLAGS=['-D TU_DORTMUND=1'])
+            print("TU Dortmund modifications are enabled.")
+        else:
+            env.Append(CCFLAGS=['-D TU_DORTMUND=0'])
+            print("TU Dortmund modifications are disabled.")
+
         # As gcc and clang share many flags, do the common parts here
         env.Append(CCFLAGS=['-pipe'])
         env.Append(CCFLAGS=['-fno-strict-aliasing'])
