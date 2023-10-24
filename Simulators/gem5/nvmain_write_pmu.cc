@@ -1,3 +1,4 @@
+#if TU_DORTMUND
 #include "nvmain_write_pmu.hh"
 #include <params/NVMainWritePMU.hh>
 #include <iostream>
@@ -22,3 +23,4 @@ void Nvmain_Write_PMU::triggerWrite() {
 Nvmain_Write_PMU *gem5::NVMainWritePMUParams::create() const {
     return new Nvmain_Write_PMU(this);
 }
+#endif

@@ -1,3 +1,4 @@
+#if TU_DORTMUND
 #ifndef NVMAIN_READ_PMU
 #define NVMAIN_READ_PMU
 
@@ -19,4 +20,5 @@ class Nvmain_Read_PMU : public gem5::SimObject {
     static Nvmain_Read_PMU *instance;
 };
 
+#endif
 #endif

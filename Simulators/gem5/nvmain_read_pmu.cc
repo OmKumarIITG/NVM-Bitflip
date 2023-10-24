@@ -1,3 +1,4 @@
+#if TU_DORTMUND
 #include "nvmain_read_pmu.hh"
 
 #include <iostream>
@@ -23,3 +24,4 @@ void Nvmain_Read_PMU::triggerRead() {
 Nvmain_Read_PMU *gem5::NVMainReadPMUParams::create() const {
     return new Nvmain_Read_PMU(this);
 }
+#endif

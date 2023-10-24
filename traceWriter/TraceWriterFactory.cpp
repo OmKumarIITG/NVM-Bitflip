@@ -36,7 +36,9 @@
 
 /* Add your trace reader's include below. */
 #include "traceWriter/NVMainTrace/NVMainTraceWriter.h"
+#if TU_DORTMUND
 #include "traceWriter/BitFlipTrace/BitFlipTraceWriter.h"
+#endif
 #include "traceWriter/VerilogTrace/VerilogTraceWriter.h"
 #include "traceWriter/DRAMPower2Trace/DRAMPower2TraceWriter.h"
 
@@ -52,8 +54,10 @@ GenericTraceWriter *TraceWriterFactory::CreateNewTraceWriter( std::string writer
 
     if( writer == "NVMainTrace" )
         tracer = new NVMainTraceWriter( );
+    #if TU_DORTMUND
     else if( writer == "BitFlipTrace" )
         tracer = new BitFlipTraceWriter( );
+    #endif
     else if( writer == "VerilogTrace" )
         tracer = new VerilogTraceWriter( );
     else if( writer == "DRAMPower2Trace" )

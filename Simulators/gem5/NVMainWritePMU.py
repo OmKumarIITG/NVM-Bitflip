@@ -5,5 +5,3 @@ class NVMainWritePMU(SimObject):
     type = 'NVMainWritePMU'
     cxx_class = 'Nvmain_Write_PMU'
     cxx_header = 'Simulators/gem5/nvmain_write_pmu.hh'
-
-    
