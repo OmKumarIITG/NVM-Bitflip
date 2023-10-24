@@ -97,8 +97,12 @@ NVMain::~NVMain( )
         delete [] channelConfig;
     }
 
-    if(preTracer)
+    #if TU_DORTMUND
+    if(preTracer) {
         delete preTracer;
+        preTracer = nullptr;
+    }
+    #endif
 }
 
 Config *NVMain::GetConfig( )
@@ -359,7 +363,9 @@ void NVMain::PrintPreTrace( NVMainRequest *request )
         TraceLine tl;
 
         tl.SetLine( request->address,
+        #if TU_DORTMUND
         request->programCounter,
+        #endif
                     request->type,
                     GetEventQueue( )->GetCurrentCycle( ),
                     request->data,

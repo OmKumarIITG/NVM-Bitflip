@@ -5,5 +5,3 @@ class NVMainReadPMU(SimObject):
     type = 'NVMainReadPMU'
     cxx_class = 'Nvmain_Read_PMU'
     cxx_header = 'Simulators/gem5/nvmain_read_pmu.hh'
-
-    

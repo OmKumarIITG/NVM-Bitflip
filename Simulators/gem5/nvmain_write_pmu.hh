@@ -1,3 +1,4 @@
+#if TU_DORTMUND
 #ifndef NVMAIN_WRITE_PMU
 #define NVMAIN_WRITE_PMU
 
@@ -19,4 +20,5 @@ class Nvmain_Write_PMU : public gem5::SimObject {
     static Nvmain_Write_PMU *instance;
 };
 
+#endif
 #endif

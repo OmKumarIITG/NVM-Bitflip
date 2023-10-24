@@ -1,3 +1,4 @@
+#if TU_DORTMUND
 /*******************************************************************************
 * Copyright (c) 2012-2014, The Microsystems Design Labratory (MDL)
 * Department of Computer Science and Engineering, The Pennsylvania State University
@@ -101,4 +102,5 @@ class BitFlipTraceWriter : public GenericTraceWriter
 
 };
 
+#endif
 #endif

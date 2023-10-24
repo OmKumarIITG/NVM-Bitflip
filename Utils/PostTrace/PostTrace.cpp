@@ -181,7 +181,9 @@ bool PostTrace::IssueCommand( NVMainRequest *request )
         TraceLine tl;
 
         tl.SetLine( request->address,
+                    #if TU_DORTMUND
                     request->programCounter,
+                    #endif
                     request->type,
                     GetEventQueue( )->GetCurrentCycle( ),
                     request->data,

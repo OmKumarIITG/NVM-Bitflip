@@ -1,3 +1,4 @@
+#if TU_DORTMUND
 /*******************************************************************************
  * Copyright (c) 2012-2014, The Microsystems Design Labratory (MDL)
  * Department of Computer Science and Engineering, The Pennsylvania State
@@ -300,3 +301,4 @@ void BitFlipTraceWriter::flush_trace_file() {
     std::cout << "Simulation stopped at memory controller cycle: " << std::dec
               << last_cycle << std::endl;
 }
+#endif

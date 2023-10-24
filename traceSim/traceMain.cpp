@@ -307,7 +307,10 @@ int TraceMain::RunTrace( int argc, char *argv[] )
 
     delete config;
     delete stats;
+    #if TU_DORTMUND
     delete nvmain;
+    nvmain = nullptr;
+    #endif
 
     return 0;
 }

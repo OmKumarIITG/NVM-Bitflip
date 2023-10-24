@@ -45,12 +45,18 @@ class TraceLine {
     TraceLine();
     ~TraceLine();
 
-    void SetLine(NVMAddress& addr, uint64_t pc, OpType op, ncycle_t cycle,
+    void SetLine(NVMAddress& addr, 
+                 #if TU_DORTMUND
+                 uint64_t pc,
+                 #endif
+                 OpType op, ncycle_t cycle,
                  NVMDataBlock& data, NVMDataBlock& oldData,
                  ncounters_t threadId);
 
     NVMAddress& GetAddress();
+    #if TU_DORTMUND
     uint64_t get_program_counter();
+    #endif
     OpType GetOperation();
     ncycle_t GetCycle();
     NVMDataBlock& GetData();
@@ -59,7 +65,9 @@ class TraceLine {
 
    private:
     NVMAddress address;
+    #if TU_DORTMUND
     uint64_t program_counter;
+    #endif
     OpType operation;
     ncycle_t cycle;
     NVMDataBlock data;

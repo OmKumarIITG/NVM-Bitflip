@@ -40,7 +40,8 @@ if 'NVMAIN_BUILD' in env:
 
 NVMainSource('GenericTraceWriter.cpp')
 NVMainSource('NVMainTrace/NVMainTraceWriter.cpp')
-NVMainSource('BitFlipTrace/BitFlipTraceWriter.cpp')
+if ARGUMENTS.get("tu_dortmund", 0) == "1": # Needs to be compared as argument is string
+    NVMainSource('BitFlipTrace/BitFlipTraceWriter.cpp')
 NVMainSource('VerilogTrace/VerilogTraceWriter.cpp')
 NVMainSource('DRAMPower2Trace/DRAMPower2TraceWriter.cpp')
 NVMainSource('TraceWriterFactory.cpp')

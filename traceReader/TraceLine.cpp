@@ -52,9 +52,15 @@ TraceLine::~TraceLine( )
 }
 
 /* Set the values of the address and memory operation. */
-void TraceLine::SetLine(NVMAddress& addr, uint64_t pc, OpType op, ncycle_t cy, NVMDataBlock& data, NVMDataBlock& oldData, ncounters_t threadId) {
+void TraceLine::SetLine(NVMAddress& addr,
+#if TU_DORTMUND
+ uint64_t pc,
+#endif
+ OpType op, ncycle_t cy, NVMDataBlock& data, NVMDataBlock& oldData, ncounters_t threadId) {
     this->address = addr;
+    #if TU_DORTMUND
     this->program_counter = pc;
+    #endif
     this->operation = op;
     this->cycle = cy;
     this->data = data;
@@ -65,10 +71,12 @@ void TraceLine::SetLine(NVMAddress& addr, uint64_t pc, OpType op, ncycle_t cy, N
 /* Get the address of the memory operation. */
 NVMAddress& TraceLine::GetAddress() { return address; }
 
+#if TU_DORTMUND
 /* Get the address of the memory operation. */
 uint64_t TraceLine::get_program_counter() {
 	return program_counter;
 }
+#endif
 
 /* Get the memory command of the operation. */
 OpType TraceLine::GetOperation() {

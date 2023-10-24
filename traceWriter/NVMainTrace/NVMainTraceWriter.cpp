@@ -98,9 +98,11 @@ void NVMainTraceWriter::WriteTraceLine(std::ostream& stream, TraceLine* line) {
     stream << std::hex << "0x" << line->GetAddress().GetPhysicalAddress()
            << std::dec << " ";
 
+    #if TU_DORTMUND
     /* Print program counter */
     stream << std::hex << "0x" << line->get_program_counter() << std::dec
            << " ";
+    #endif
 
     /* Print data. */
     stream << data << " ";

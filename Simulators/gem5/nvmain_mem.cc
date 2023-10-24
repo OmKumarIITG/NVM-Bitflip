@@ -52,8 +52,11 @@
 #include "debug/NVMainMin.hh"
 //#include "config/the_isa.hh"
 #include "base/trace.hh"
+
+#if TU_DORTMUND
 #include "nvmain_write_pmu.hh"
 #include "nvmain_read_pmu.hh"
+#endif
 
 using namespace NVM;
 using namespace gem5;
@@ -256,7 +259,11 @@ void NVMainMemory::NVMainStatPrinter::process() {
     nvmainPtr->CalculateStats();
     std::ostream &refStream = (statStream.is_open()) ? statStream : std::cout;
     nvmainPtr->GetStats()->PrintAll(refStream);
+
+    #if TU_DORTMUND
     delete nvmainPtr;
+    nvmainPtr = nullptr;
+    #endif
 }
 
 void NVMainMemory::NVMainStatReseter::process() {
@@ -356,6 +363,7 @@ Tick NVMainMemory::MemoryPort::recvAtomic(PacketPtr pkt) {
             return latency;
         }
 
+        #if TU_DORTMUND
         if(pkt->isWrite()){
             if(Nvmain_Write_PMU::instance != 0){
                 Nvmain_Write_PMU::instance->triggerWrite();
@@ -366,6 +374,7 @@ Tick NVMainMemory::MemoryPort::recvAtomic(PacketPtr pkt) {
                 Nvmain_Read_PMU::instance->triggerRead();
             }
         }
+        #endif
 
         /* initialize the request so that NVMain can correctly serve it */
         request->access = UNKNOWN_ACCESS;
@@ -439,6 +448,7 @@ bool NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt) {
         return true;
     }
 
+    #if TU_DORTMUND
     if(pkt->isWrite()){
             if(Nvmain_Write_PMU::instance != 0){
                 Nvmain_Write_PMU::instance->triggerWrite();
@@ -449,6 +459,7 @@ bool NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt) {
                 Nvmain_Read_PMU::instance->triggerRead();
             }
         }
+    #endif
 
     if (memory.retryRead || memory.retryWrite) {
         DPRINTF(NVMain,
