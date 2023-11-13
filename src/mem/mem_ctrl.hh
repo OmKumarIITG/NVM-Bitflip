@@ -57,9 +57,10 @@
 #include "enums/MemSched.hh"
 #include "mem/qos/mem_ctrl.hh"
 #include "mem/qport.hh"
+#include "memory_content.hh"
+#include "traceWriter/TraceEventObject.hh"
 #include "params/MemCtrl.hh"
 #include "sim/eventq.hh"
-
 namespace gem5
 {
 
@@ -269,6 +270,7 @@ class MemCtrl : public qos::MemCtrl
         void recvFunctional(PacketPtr pkt) override;
         void recvMemBackdoorReq(const MemBackdoorReq &req,
                 MemBackdoorPtr &backdoor) override;
+
 
         bool recvTimingReq(PacketPtr) override;
 
@@ -497,6 +499,14 @@ class MemCtrl : public qos::MemCtrl
      * does not exceed the allowable media constraints.
      */
     std::unordered_multiset<Tick> burstTicks;
+
+    /**
+    * Map that stores older memory Contents to corresponding
+    * Addrees for BitFlip counting and later Histogramms  
+    */
+    std::map<Addr, memory_content> memory_map;
+
+    TraceEventObject* tracer;
 
     /**
 +    * Create pointer to interface of the actual memory media when connected

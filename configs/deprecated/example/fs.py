@@ -132,6 +132,7 @@ def build_test_system(np):
     test_sys.cpu_clk_domain = SrcClockDomain(
         clock=args.cpu_clock, voltage_domain=test_sys.cpu_voltage_domain
     )
+    test_sys.tracer = TraceEventObject(timer ='10ms')
 
     if buildEnv["USE_RISCV_ISA"]:
         test_sys.workload.bootloader = args.kernel
