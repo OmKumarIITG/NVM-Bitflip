@@ -487,6 +487,19 @@ bool NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt) {
      *  this fix up value.
      */
     uint64_t addressFixUp = 0;
+
+/**
+ * // BUG:
+ * THE_ISA, X86_ISA and ARM_ISA do not seem to be defined anymore (As the header
+ * file, which is not present with new Gem5 was commented out). This seems
+ * to be the case since Stefan combined the most recent version of Gem5 with
+ * the most recent version of NVMain2.0. Double checked it: Gem5 does not
+ * provide those ISA information anymore (before it also used them in multiple
+ * cases, not anymore) but the most recent version of NVMain2.0 still requires
+ * them. It was used for a bugfix within NVMain2.0. However: Last NVMain2.0 commit was in
+ * Aug. 2018. Therefore this may be outdated and the bugfix may not be required anymore.
+ * Unsure how to verify. How to proceed?
+ */
 #if THE_ISA == X86_ISA
     if (masterInstance != &memory) {
         addressFixUp = 0x40000000;
