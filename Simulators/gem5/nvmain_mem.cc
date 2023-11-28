@@ -500,11 +500,18 @@ bool NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt) {
  * Aug. 2018. Therefore this may be outdated and the bugfix may not be required anymore.
  * Unsure how to verify. How to proceed?
  */
-#if THE_ISA == X86_ISA
+
+/* Quick and dirty bug fix. As long as IS_X86_ISA is not defined, the 
+ * ARM fixup will be taken. ARM main memory adresses start at 0x8000 0000.
+ * ARM memory map details:  
+ * https://developer.arm.com/documentation/den0001/latest
+ */
+#if IS_X86_ISA 
+    
     if (masterInstance != &memory) {
         addressFixUp = 0x40000000;
     }
-#elif THE_ISA == ARM_ISA
+#else 
     /*
      *  ARM regions are 2GB - 4GB followed by 34 GB - 64 GB. Work for up to
      *  34 GB of memory. Further regions from 512 GB - 992 GB.
