@@ -403,6 +403,14 @@ for variant_path in variant_paths:
 
     # Set up default C++ compiler flags
     if env['GCC'] or env['CLANG']:
+        # Control NVMain2.0 architecture workaround
+        architecture_flag = ARGUMENTS.get("architecture")
+        if(architecture_flag == "x86"):
+            env.Append(CCFLAGS=['-D IS_X86_ISA'])
+            print("Using x86 address fixup in NVMain2.0.")
+        else:
+            print("Using ARM address fixup in NVMain2.0.")
+
         # Unified Gem5 build feature config flags.
         tu_dortmund_flag = ARGUMENTS.get("tu_dortmund", 0)
         if tu_dortmund_flag == "1": # Needs to be compared as argument is string
