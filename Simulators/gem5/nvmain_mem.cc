@@ -506,7 +506,7 @@ bool NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt) {
  * ARM memory map details:  
  * https://developer.arm.com/documentation/den0001/latest
  */
-#if IS_X86_ISA 
+#ifdef IS_X86_ISA
     
     if (masterInstance != &memory) {
         addressFixUp = 0x40000000;
