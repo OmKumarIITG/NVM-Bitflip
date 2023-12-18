@@ -420,6 +420,14 @@ for variant_path in variant_paths:
             env.Append(CCFLAGS=['-D TU_DORTMUND=0'])
             print("TU Dortmund modifications are disabled.")
 
+        CDNCcim_flag = ARGUMENTS.get("CDNCcim", 0)
+        if CDNCcim_flag == "1": # Needs to be compared as argument is string
+            env.Append(CCFLAGS=['-D CDNCcimFlag=1'])
+            print(">>> CDNCcim modifications are enabled.")
+        else:
+            env.Append(CCFLAGS=['-D CDNCcimFlag=0'])
+            print(">>> CDNCcim modifications are disabled.")
+
         # As gcc and clang share many flags, do the common parts here
         env.Append(CCFLAGS=['-pipe'])
         env.Append(CCFLAGS=['-fno-strict-aliasing'])

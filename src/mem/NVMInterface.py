@@ -39,6 +39,7 @@ from m5.objects.MemCtrl import MemCtrl
 from m5.objects.MemInterface import MemInterface
 from m5.objects.DRAMInterface import AddrMap
 
+
 # The following interface aims to model byte-addressable NVM
 # The most important system-level performance effects of a NVM
 # are modeled without getting into too much detail of the media itself.
@@ -46,6 +47,9 @@ class NVMInterface(MemInterface):
     type = "NVMInterface"
     cxx_header = "mem/nvm_interface.hh"
     cxx_class = "gem5::memory::NVMInterface"
+
+    # @CDNCcim
+    cim_handler_list = VectorParam.CimHandler([], "List of CIM Modules")
 
     # NVM DIMM could have write buffer to offload writes
     # define buffer depth, which will limit the number of pending writes
