@@ -49,7 +49,11 @@ class NVMInterface(MemInterface):
     cxx_class = "gem5::memory::NVMInterface"
 
     # @CDNCcim
-    cim_handler_list = VectorParam.CimHandler([], "List of CIM Modules")
+    try:
+        from m5.objects import CimHandler
+        cim_handler_list = VectorParam.CimHandler([], "List of CIM Modules")
+    except ImportError:
+        pass
 
     # NVM DIMM could have write buffer to offload writes
     # define buffer depth, which will limit the number of pending writes
