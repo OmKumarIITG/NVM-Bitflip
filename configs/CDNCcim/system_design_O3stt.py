@@ -163,30 +163,38 @@ system.mem_ctrl.dram.banks_per_rank = 16
 system.mem_ctrl.dram.range = system.mem_ranges[0]
 
 
-# Scons should be compiled with CDNCcim=1 flag!!!
-# otherwise comment these lines and
+# Scons should be build with 'CDNCcim=1' flag!!!
+# otherwise comment these lines and also
 # process.map(...)
-system.mem_ctrl.dram.cim_handler_list = [CimHandler()]
+try:
+    system.mem_ctrl.dram.cim_handler_list = [CimHandler()]
 
-for cim in system.mem_ctrl.dram.cim_handler_list:
-    cim.cim_operation_handler = (
-        CimOperationInterface()
-    )  # or CimFaultInjection()
-    cim.operations_init_latency = [
-        "75ps",  # these values will be multiplied by num_banks
-        "75ps",
-        "75ps",
-        "100ps",
-        "100ps",
-    ]
-    cim.operations_on_word_latency = [
-        "5ps",  # these values will be multiplied by num_banks * num_columns
-        "5ps",
-        "5ps",
-        "10ps",
-        "10ps",
-    ]
-
+    for cim in system.mem_ctrl.dram.cim_handler_list:
+        cim.cim_operation_handler = (
+            CimOperationInterface()
+        )  # or CimFaultInjection()
+        cim.operations_init_latency = [
+            "75ps",  # these values will be multiplied by num_banks
+            "75ps",
+            "75ps",
+            "100ps",
+            "100ps",
+        ]
+        cim.operations_on_word_latency = [
+            "5ps",  # these values will be multiplied by num_banks * num_columns
+            "5ps",
+            "5ps",
+            "10ps",
+            "10ps",
+        ]
+except:
+    RED_TEXT = "\033[91m"
+    RESET_COLOR = "\033[0m"
+    print(
+        RED_TEXT
+        + ">>> gem5 might not have been built with the 'CDNCcim=1' flag!\n"
+        + RESET_COLOR
+    )
 
 system.workload = SEWorkload.init_compatible(args.binary)
 
