@@ -425,7 +425,7 @@ for variant_path in variant_paths:
             env.Append(CCFLAGS=['-D CDNCcimFlag=1'])
             print(">>> CDNCcim modifications are enabled.")
         else:
-            env.Append(CCFLAGS=['-D CDNCcimFlag=0'])
+            env.Append(CCFLAGS=['-U CDNCcimFlag'])
             print(">>> CDNCcim modifications are disabled.")
 
         # As gcc and clang share many flags, do the common parts here
