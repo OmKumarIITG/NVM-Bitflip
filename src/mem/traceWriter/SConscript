@@ -31,9 +31,5 @@
 
 Import('*')
 
-SimObject('TraceEventObject.py', sim_objects=['TraceEventObject'])
-Source('TraceEventObject.cc')
 Source('DefaultTrace/DefaultTraceWriter.cc')
-Source('BitFLipTrace/BitFlipTraceWriter.cc')
 Source('GenericTraceWriter.cc')
-Source('TraceWriterFactory.cc')

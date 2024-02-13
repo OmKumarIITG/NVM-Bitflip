@@ -38,12 +38,17 @@
 
 namespace gem5 {
 
+DefaultTraceWriter::DefaultTraceWriter() {}
 
+DefaultTraceWriter::~DefaultTraceWriter() {
+    std::cout << "Closing the trace, writing out results" << std::endl;
+    WriteTraceLine(trace);
+}
 void DefaultTraceWriter::SetTraceFile(std::string file) {
     // Note: This function assumes an absolute path is given, otherwise
     // the current directory is used.
 
-    traceFile = "/workspaces/gem5-sim/test.txt";
+    traceFile = file;
 
     trace.open(traceFile.c_str());
 
@@ -53,21 +58,56 @@ void DefaultTraceWriter::SetTraceFile(std::string file) {
     }
 
     /* Write version number of this writer. */
-    trace << "NVMV1" << std::endl;
+    // trace << "NVMV1" << std::endl;
 }
 
 std::string DefaultTraceWriter::GetTraceFile() { return traceFile; }
 
 bool DefaultTraceWriter::SetNextAccess(memory_content nextAccess) {
     bool rv = false;
-
-    if (trace.is_open()) {
-        WriteTraceLine(trace, nextAccess);
-        rv = trace.good();
+    if(nextAccess.getAddress()) {
+        traceLines.push_back(nextAccess);
+        rv = true;
     }
-
     return rv;
 }
+
+void DefaultTraceWriter::WriteTraceLine(std::ostream& stream) {
+
+    for(memory_content line : traceLines) {
+        if(line.getAddress()) {
+
+            /* Print memory cycle. */
+            stream << line.getTick() << " ";
+
+            /* Print the operation type */
+            if (line.getCmd())
+                stream << "W ";
+            else
+                stream << "R ";
+
+            /* Print address */
+            stream << std::hex << "0x" << line.getAddress()
+                << std::dec << " ";
+
+            /* Print data. */
+            stream << (int) *line.getNewContent() << " ";
+
+            /* Print previous data. */
+            stream << (int) *line.getOldContent() << " ";
+
+            /* Print the BitFlips */
+            stream << bitFlipsToString(line.getBitFlips()) << std::endl;
+            
+        }
+
+        else 
+        {
+            stream << "nullptr";
+        }
+    }
+}
+
 std::string DefaultTraceWriter::bitFlipsToString(uint64_t* array) {
         std::string result;
         for (int i = 0; i < 64; i++) {
@@ -83,38 +123,5 @@ std::string DefaultTraceWriter::bitFlipsToString(uint64_t* array) {
         }
         return result;
     }
-
-void DefaultTraceWriter::WriteTraceLine(std::ostream& stream, memory_content line) {
-    if(line.getAddress()) {
-
-        /* Print memory cycle. */
-        stream << line.getTick() << " ";
-
-        /* Print the operation type */
-        if (line.getCmd())
-            stream << "W ";
-        else
-            stream << "R ";
-
-        /* Print address */
-        stream << std::hex << "0x" << line.getAddress()
-            << std::dec << " ";
-
-        /* Print data. */
-        stream << line.getNewContent() << " ";
-
-        /* Print previous data. */
-        stream << line.getOldContent() << " ";
-
-        /* Print the BitFlips */
-        stream << bitFlipsToString(line.getBitFlips()) << std::endl;
-        
-    }
-
-    else 
-    {
-        stream << "nullptr";
-    }
-}
 
 }; //namespace gem5

@@ -38,5 +38,13 @@
 #include <assert.h>
 
 namespace gem5 {
+GenericTraceWriter::GenericTraceWriter( )
+{
 
+}
+
+GenericTraceWriter::~GenericTraceWriter( )
+{
+
+}
 }; //namesapce gem5

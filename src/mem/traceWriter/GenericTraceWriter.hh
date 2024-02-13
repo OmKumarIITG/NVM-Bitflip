@@ -46,11 +46,14 @@ namespace gem5 {
 class GenericTraceWriter
 {
   public:
+    GenericTraceWriter( );
+    virtual ~GenericTraceWriter( );
 
     virtual void SetTraceFile( std::string file ) = 0;
     virtual std::string GetTraceFile( ) = 0;
 
     virtual bool SetNextAccess( memory_content nextAccess ) = 0;
+    //virtual void WriteTraceLine( std::ostream& , memory_content line ) = 0;
 };
 
 };

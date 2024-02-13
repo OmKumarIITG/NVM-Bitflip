@@ -40,6 +40,7 @@
 
 #include "mem/mem_ctrl.hh"
 #include "base/trace.hh"
+#include "base/callback.hh"
 #include "debug/DRAM.hh"
 #include "debug/Drain.hh"
 #include "debug/MemCtrl.hh"
@@ -58,7 +59,7 @@
 #include <ios>
 #include <iostream>
 #include <ostream>
-
+#define trace_enable 0
 
 namespace gem5
 {
@@ -74,7 +75,6 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
                          respondEvent, nextReqEvent, retryWrReq);}, name()),
     respondEvent([this] {processRespondEvent(dram, respQueue,
                          respondEvent, retryRdReq); }, name()),
-    tracer(p.tracerObject),
     dram(p.dram),
     readBufferSize(dram->readBufferSize),
     writeBufferSize(dram->writeBufferSize),
@@ -105,6 +105,10 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     if (p.disable_sanity_check) {
         port.disableSanityCheck();
     }
+    //call destructor for Tracewriter to write file as it does not happen automatically
+    #if trace_enable
+    registerExitCallback([this]() { tracer->~GenericTraceWriter(); });
+    #endif
 }
 
 void
@@ -119,10 +123,12 @@ MemCtrl::init()
 
 void
 MemCtrl::startup()
-{
+{   
+    #if trace_enable
+    parseConfigFile(configPath);
+    #endif
     // remember the memory system mode of operation
     isTimingMode = system()->isTimingMode();
-
     if (isTimingMode) {
         // shift the bus busy time sufficiently far ahead that we never
         // have to worry about negative values when computing the time for
@@ -131,6 +137,58 @@ MemCtrl::startup()
         dram->nextBurstAt = curTick() + dram->commandOffset();
     }
 }
+
+GenericTraceWriter*
+MemCtrl::CreateNewTraceWriter(std::string writer)
+{
+    GenericTraceWriter *tracer = NULL;
+
+    if( writer == "" )
+        std::cout << "TraceWriter is not set in configuration file!" 
+            << std::endl;
+
+    if( writer == "DefaultTraceWriter" )
+        tracer = new DefaultTraceWriter();
+
+    if( tracer == NULL )
+        std::cout << "Unknown trace writer `" << writer << "'." 
+            << std::endl;
+
+    return tracer;
+}
+
+void
+MemCtrl::parseConfigFile(std::string path) {
+    std::ifstream cFile (path);
+    if (cFile.is_open())
+    {
+        std::string line;
+        while(getline(cFile, line))
+       {
+            line.erase(std::remove_if(line.begin(), line.end(), isspace),
+                                 line.end());
+            if(line.empty() || line[0] == '#')
+            {
+                continue;
+            }
+            auto delimiterPos = line.find("=");
+            auto name = line.substr(0, delimiterPos);
+            auto value = line.substr(delimiterPos + 1);
+            if(name == "trace") {
+                tracer = CreateNewTraceWriter(value);
+            }
+
+            else if(name == "file") {
+                tracer->SetTraceFile(value);
+            }
+        }
+    }
+    else 
+    {
+        std::cerr << "Couldn't open config file for reading.\n";
+    }
+}
+
 
 Tick
 MemCtrl::recvAtomic(PacketPtr pkt)
@@ -208,7 +266,24 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
     assert(!pkt->isWrite());
 
     assert(pkt_count != 0);
-
+    
+    //if traces are enabled aka trace_enable = 1
+    #if trace_enable
+    // copy memory access for Tracer and put it into map or update values
+    auto it = memory_map.find(pkt->getAddr());
+    if(it == memory_map.end()) {
+        memory_content c;
+        c.setAddress(pkt->getAddr());
+        c.setNewContent(mem_intr->toHostAddr(pkt->getAddr()));
+        c.updateContent(pkt->getAddr(), pkt->isWrite(), pkt->getPtr<uint8_t>(), curTick());
+        memory_map.insert(std::pair<Addr, memory_content>(pkt->getAddr(), c));
+        tracer->SetNextAccess(c);
+    } else {
+            it->second.setCmd(0);
+            it->second.setTick(curTick());
+            tracer->SetNextAccess(it->second);
+    }
+    #endif
     // if the request size is larger than burst size, the pkt is split into
     // multiple packets
     // Note if the pkt starting address is not aligened to burst size, the
@@ -319,7 +394,22 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
     // only add to the write queue here. whenever the request is
     // eventually done, set the readyTime, and call schedule()
     assert(pkt->isWrite());
-
+    //if traces are enabled aka trace_enable = 1
+    #if trace_enable
+    // copy memory access for Tracer and put it into map or update values
+    auto it = memory_map.find(pkt->getAddr());
+    if(it == memory_map.end()) {
+        memory_content c;
+        c.setAddress(pkt->getAddr());
+        c.setNewContent(mem_intr->toHostAddr(pkt->getAddr()));
+        c.updateContent(pkt->getAddr(), pkt->isWrite(), pkt->getPtr<uint8_t>(), curTick());
+        memory_map.insert(std::pair<Addr, memory_content>(pkt->getAddr(), c));
+        tracer->SetNextAccess(c);
+    } else {
+        it->second.updateContent(pkt->getAddr(), pkt->isWrite(), pkt->getPtr<uint8_t>(), curTick());
+        tracer->SetNextAccess(it->second);
+    }
+    #endif
     // if the request size is larger than burst size, the pkt is split into
     // multiple packets
     const Addr base_addr = pkt->getAddr();
@@ -641,26 +731,6 @@ MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency,
     // response
     panic_if(!mem_intr->getAddrRange().contains(pkt->getAddr()),
              "Can't handle address range for packet %s\n", pkt->print());
-    
-    // copy memory access for Tracer and put it into map or update values
-    auto it = memory_map.find(pkt->getAddr());
-    if(it == memory_map.end()) {
-        memory_content c;
-        c.setAddress(pkt->getAddr());
-        c.setNewContent(uint64_t(*mem_intr->toHostAddr(pkt->getAddr())));
-        c.updateContent(pkt->getAddr(), pkt->isWrite(), uint64_t(*pkt->getConstPtr<uint8_t>()), curTick());
-        memory_map.insert(std::pair<Addr, memory_content>(pkt->getAddr(), c));
-        tracer->insertBuffer(c);
-    } else {
-        if(pkt->isWrite()) {
-            it->second.updateContent(pkt->getAddr(), pkt->isWrite(), uint64_t(*pkt->getConstPtr<uint8_t>()), curTick());
-            tracer->insertBuffer(it->second);
-        } else {
-            it->second.setCmd(0);
-            it->second.setTick(curTick());
-            tracer->insertBuffer(it->second);
-        }
-    }   
     mem_intr->access(pkt);
     
     // turn packet around to go back to requestor if response expected
@@ -1427,25 +1497,6 @@ MemCtrl::recvFunctionalLogic(PacketPtr pkt, MemInterface* mem_intr)
 {
     if (mem_intr->getAddrRange().contains(pkt->getAddr())) {
         // rely on the abstract memory
-        auto it = memory_map.find(pkt->getAddr());
-        if(it == memory_map.end()) {
-            memory_content c;
-            c.setAddress(pkt->getAddr());
-            c.setOldContent(uint64_t(*mem_intr->toHostAddr(pkt->getAddr())));
-            //std::cout << "Add memory content first time\n";
-            c.updateContent(pkt->getAddr(), pkt->isWrite(), uint64_t(*pkt->getConstPtr<uint8_t>()), curTick());
-            memory_map.insert(std::pair<Addr, memory_content>(pkt->getAddr(), c));
-        } else {
-            if(pkt->isWrite()) {
-                //std::cout << "Update memory\n";
-                it->second.updateContent(pkt->getAddr(), pkt->isWrite(),uint64_t(*pkt->getConstPtr<uint8_t>()), curTick());
-                tracer->insertBuffer(it->second);
-            } else {
-                it->second.setCmd(0);
-                it->second.setTick(curTick());
-                tracer->insertBuffer(it->second);
-            }
-        }   
         mem_intr->functionalAccess(pkt);
         return true;
     } else {

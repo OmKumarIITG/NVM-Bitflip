@@ -45,17 +45,19 @@ namespace gem5 {
 class DefaultTraceWriter : public GenericTraceWriter
 {
   public:
-    
+    DefaultTraceWriter( );
+    ~DefaultTraceWriter( );
     void SetTraceFile( std::string file );
     std::string GetTraceFile( );
     
     bool SetNextAccess( memory_content nextAccess );
-    void WriteTraceLine( std::ostream& , memory_content line );
+    void WriteTraceLine( std::ostream&);
     std::string bitFlipsToString(uint64_t* array);
   
   private:
     std::string traceFile;
     std::ofstream trace;
+    std::vector<memory_content> traceLines;
 
 };
 

@@ -58,7 +58,8 @@
 #include "mem/qos/mem_ctrl.hh"
 #include "mem/qport.hh"
 #include "memory_content.hh"
-#include "traceWriter/TraceEventObject.hh"
+#include "traceWriter/GenericTraceWriter.hh"
+#include "traceWriter/DefaultTrace/DefaultTraceWriter.hh"
 #include "params/MemCtrl.hh"
 #include "sim/eventq.hh"
 namespace gem5
@@ -506,7 +507,9 @@ class MemCtrl : public qos::MemCtrl
     */
     std::map<Addr, memory_content> memory_map;
 
-    TraceEventObject* tracer;
+    GenericTraceWriter *tracer;
+
+    std::string configPath = "/workspaces/Gem5/configs/config_files/trace.config";
 
     /**
 +    * Create pointer to interface of the actual memory media when connected
@@ -788,6 +791,8 @@ class MemCtrl : public qos::MemCtrl
     virtual void init() override;
     virtual void startup() override;
     virtual void drainResume() override;
+    static GenericTraceWriter *CreateNewTraceWriter( std::string writer );
+    void parseConfigFile(std::string path);
 
   protected:
 

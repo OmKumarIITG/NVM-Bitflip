@@ -17,29 +17,29 @@ namespace gem5
         private:
         Addr address;
         bool cmd;
-        uint64_t newContent = 0;
-        uint64_t oldContent = 0;
+        uint8_t *newContent;
+        uint8_t *oldContent;
         uint64_t bitFlips[64] = {0};
         uint64_t tick = 0;
 
         public:
         
-        uint64_t getNewContent()
+        uint8_t *getNewContent()
         {
             return this->newContent;
         }
 
-        void setNewContent(uint64_t newerContent)
+        void setNewContent(uint8_t *newerContent)
         {   
             this->newContent = newerContent;
         }
 
-        uint64_t getOldContent()
+        uint8_t *getOldContent()
         {
             return this->oldContent;
         }
 
-        void setOldContent(uint64_t oldContent)
+        void setOldContent(uint8_t *oldContent)
         {   
             this->oldContent = oldContent;
         }
@@ -80,8 +80,8 @@ namespace gem5
                 this->cmd = cmd;
         }
 
-        void setContent(Addr address, bool cmd, uint64_t oldContent, uint64_t newerContent, uint64_t tick);
-        void updateContent(Addr address, bool cmd, uint64_t content, uint64_t curtick);
+        void setContent(Addr address, bool cmd, uint8_t *oldContent, uint8_t *newerContent, uint64_t tick);
+        void updateContent(Addr address, bool cmd, uint8_t *content, uint64_t curtick);
         void addFlipCount(std::bitset<64> set);
     };  
 } //namespace gem5
