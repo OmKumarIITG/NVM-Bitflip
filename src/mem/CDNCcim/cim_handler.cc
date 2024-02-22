@@ -1,3 +1,4 @@
+#ifdef CDNCcimFlag
 /**
  * CDNCcim:
  *
@@ -334,3 +335,4 @@ CimHandler::CommandDecode::print()
 
 } // namespace memory
 } // namespace gem5
+#endif

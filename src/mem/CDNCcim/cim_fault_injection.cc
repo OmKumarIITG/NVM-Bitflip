@@ -1,3 +1,4 @@
+#ifdef CDNCcimFlag
 /**
  * CDNCcim:
  *
@@ -57,3 +58,4 @@ CimFaultInjection::NOT_COND(
 }
 } // namespace memory
 } // namespace gem5
+#endif
