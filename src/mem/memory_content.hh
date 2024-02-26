@@ -1,6 +1,6 @@
+#ifdef TU_DORTMUND
 #ifndef __MEMORY_CONTENT_HH__
 #define __MEMORY_CONTENT_HH__
-
 #include <bitset>
 #include <cassert>
 #include <cstddef>
@@ -85,4 +85,5 @@ namespace gem5
         void addFlipCount(std::bitset<64> set);
     };  
 } //namespace gem5
+#endif
 #endif

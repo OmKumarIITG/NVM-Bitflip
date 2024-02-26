@@ -31,16 +31,14 @@
 *                     Website: http://www.cse.psu.edu/~poremba/ )
 *******************************************************************************/
 
+#ifdef TU_DORTMUND
 #ifndef __GENERIC_TRACE_WRITER_H__
 #define __GENERIC_TRACE_WRITER_H__
-
 #include "mem/memory_content.hh"
-
 #include <string>
 #include <vector>
 #include <cstdlib>
 #include <cassert>
-
 namespace gem5 {
 
 class GenericTraceWriter
@@ -57,5 +55,5 @@ class GenericTraceWriter
 };
 
 };
-
+#endif
 #endif

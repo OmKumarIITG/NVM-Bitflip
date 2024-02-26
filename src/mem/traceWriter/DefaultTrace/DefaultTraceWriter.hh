@@ -31,9 +31,9 @@
 *                     Website: http://www.cse.psu.edu/~poremba/ )
 *******************************************************************************/
 
+#ifdef TU_DORTMUND
 #ifndef __DEFAULT_TRACE_WRITER_H__
 #define __DEFAULT_TRACE_WRITER_H__
-
 #include "../GenericTraceWriter.hh"
 #include "mem/memory_content.hh"
 #include <string>
@@ -62,5 +62,5 @@ class DefaultTraceWriter : public GenericTraceWriter
 };
 
 };
-
+#endif
 #endif

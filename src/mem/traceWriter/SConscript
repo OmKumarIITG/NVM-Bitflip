@@ -30,6 +30,5 @@
 #                     Website: http://www.cse.psu.edu/~poremba/ )
 
 Import('*')
-
 Source('DefaultTrace/DefaultTraceWriter.cc')
 Source('GenericTraceWriter.cc')

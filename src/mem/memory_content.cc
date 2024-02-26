@@ -1,5 +1,5 @@
+#ifdef TU_DORTMUND
 #include "mem/memory_content.hh"
-#include "params/TraceEventObject.hh"
 #include <algorithm>
 #include <bits/stdc++.h>
 #include <bitset>
@@ -10,7 +10,6 @@
 #include <sstream>
 #include <string>
 #include <sys/types.h>
-#include <thread>
 
 namespace gem5
 {
@@ -44,3 +43,4 @@ namespace gem5
         setNewContent(newerContent);
     }
 } //namespace gem5
+#endif

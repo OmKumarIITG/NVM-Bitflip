@@ -30,7 +30,7 @@
 *   Matt Poremba    ( Email: mrp5060 at psu dot edu 
 *                     Website: http://www.cse.psu.edu/~poremba/ )
 *******************************************************************************/
-
+#ifdef TU_DORTMUND
 #include "GenericTraceWriter.hh"
 #include "mem/memory_content.hh"
 
@@ -48,3 +48,4 @@ GenericTraceWriter::~GenericTraceWriter( )
 
 }
 }; //namesapce gem5
+#endif

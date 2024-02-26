@@ -31,6 +31,7 @@
  *                     Website: http://www.cse.psu.edu/~poremba/ )
  *******************************************************************************/
 
+#ifdef TU_DORTMUND
 #include "DefaultTraceWriter.hh"
 #include <cstdint>
 #include <iostream>
@@ -125,3 +126,4 @@ std::string DefaultTraceWriter::bitFlipsToString(uint64_t* array) {
     }
 
 }; //namespace gem5
+#endif

@@ -40,7 +40,6 @@
 
 #include "mem/mem_ctrl.hh"
 #include "base/trace.hh"
-#include "base/callback.hh"
 #include "debug/DRAM.hh"
 #include "debug/Drain.hh"
 #include "debug/MemCtrl.hh"
@@ -49,18 +48,18 @@
 #include "mem/dram_interface.hh"
 #include "mem/mem_interface.hh"
 #include "mem/nvm_interface.hh"
-#include "mem/comm_monitor.hh"
-#include "memory_content.hh"
 #include "sim/cur_tick.hh"
 #include "sim/system.hh"
+#ifdef TU_DORTMUND
 #include <alloca.h>
 #include <cstdint>
 #include <fstream>
 #include <ios>
 #include <iostream>
 #include <ostream>
-#define trace_enable 0
-
+#include "memory_content.hh"
+#include "base/callback.hh"
+#endif
 namespace gem5
 {
 
@@ -106,7 +105,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
         port.disableSanityCheck();
     }
     //call destructor for Tracewriter to write file as it does not happen automatically
-    #if trace_enable
+    #ifdef TU_DORTMUND
     registerExitCallback([this]() { tracer->~GenericTraceWriter(); });
     #endif
 }
@@ -124,7 +123,7 @@ MemCtrl::init()
 void
 MemCtrl::startup()
 {   
-    #if trace_enable
+    #ifdef TU_DORTMUND
     parseConfigFile(configPath);
     #endif
     // remember the memory system mode of operation
@@ -138,6 +137,7 @@ MemCtrl::startup()
     }
 }
 
+#ifdef TU_DORTMUND
 GenericTraceWriter*
 MemCtrl::CreateNewTraceWriter(std::string writer)
 {
@@ -188,7 +188,7 @@ MemCtrl::parseConfigFile(std::string path) {
         std::cerr << "Couldn't open config file for reading.\n";
     }
 }
-
+#endif
 
 Tick
 MemCtrl::recvAtomic(PacketPtr pkt)
@@ -267,8 +267,8 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
 
     assert(pkt_count != 0);
     
-    //if traces are enabled aka trace_enable = 1
-    #if trace_enable
+    //if traces are enabled 
+    #ifdef TU_DORTMUND
     // copy memory access for Tracer and put it into map or update values
     auto it = memory_map.find(pkt->getAddr());
     if(it == memory_map.end()) {
@@ -394,8 +394,8 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
     // only add to the write queue here. whenever the request is
     // eventually done, set the readyTime, and call schedule()
     assert(pkt->isWrite());
-    //if traces are enabled aka trace_enable = 1
-    #if trace_enable
+    //if traces are enabled
+    #ifdef TU_DORTMUND
     // copy memory access for Tracer and put it into map or update values
     auto it = memory_map.find(pkt->getAddr());
     if(it == memory_map.end()) {
