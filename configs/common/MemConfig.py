@@ -37,7 +37,6 @@ import m5.objects
 from common import ObjectList
 from common import HMC
 
-
 def create_mem_intf(intf, r, i, intlv_bits, intlv_size, xor_low_bit):
     """
     Helper function for creating a single memoy controller from the given
@@ -121,7 +120,7 @@ def config_mem(options, system):
 
     # Mandatory options
     opt_mem_channels = options.mem_channels
-
+    
     # Semi-optional options
     # Must have either mem_type or nvm_type or both
     opt_mem_type = getattr(options, "mem_type", None)
@@ -240,7 +239,7 @@ def config_mem(options, system):
                     mem_ctrl = dram_intf
                 else:
                     mem_ctrl = dram_intf.controller()
-
+                
                 mem_ctrls.append(mem_ctrl)
 
             elif opt_nvm_type and (not opt_mem_type or range_iter % 2 == 0):

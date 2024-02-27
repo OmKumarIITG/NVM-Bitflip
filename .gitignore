@@ -32,3 +32,7 @@ configs/example/memcheck.cfg
 configs/dram/lowp_sweep.cfg
 .pyenv
 .vscode
+.cache
+compile_commands.json
+gem5.terminal
+traceFiles/
