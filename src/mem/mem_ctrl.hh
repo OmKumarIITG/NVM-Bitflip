@@ -59,7 +59,11 @@
 #include "mem/qport.hh"
 #include "params/MemCtrl.hh"
 #include "sim/eventq.hh"
-
+#ifdef TU_DORTMUND
+#include "memory_content.hh"
+#include "traceWriter/GenericTraceWriter.hh"
+#include "traceWriter/DefaultTrace/DefaultTraceWriter.hh"
+#endif
 namespace gem5
 {
 
@@ -269,6 +273,7 @@ class MemCtrl : public qos::MemCtrl
         void recvFunctional(PacketPtr pkt) override;
         void recvMemBackdoorReq(const MemBackdoorReq &req,
                 MemBackdoorPtr &backdoor) override;
+
 
         bool recvTimingReq(PacketPtr) override;
 
@@ -497,6 +502,18 @@ class MemCtrl : public qos::MemCtrl
      * does not exceed the allowable media constraints.
      */
     std::unordered_multiset<Tick> burstTicks;
+
+    /**
+    * Map that stores older memory Contents to corresponding
+    * Addrees for BitFlip counting and later Histogramms  
+    */
+    #ifdef TU_DORTMUND
+    std::map<Addr, memory_content> memory_map;
+
+    GenericTraceWriter *tracer;
+
+    std::string configPath = "/workspaces/Gem5/configs/config_files/trace.config";
+    #endif
 
     /**
 +    * Create pointer to interface of the actual memory media when connected
@@ -778,7 +795,11 @@ class MemCtrl : public qos::MemCtrl
     virtual void init() override;
     virtual void startup() override;
     virtual void drainResume() override;
-
+    #ifdef TU_DORTMUND
+    static GenericTraceWriter *CreateNewTraceWriter( std::string writer );
+    void parseConfigFile(std::string path);
+    #endif
+    
   protected:
 
     virtual Tick recvAtomic(PacketPtr pkt);
