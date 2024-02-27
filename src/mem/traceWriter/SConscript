@@ -30,5 +30,7 @@
 #                     Website: http://www.cse.psu.edu/~poremba/ )
 
 Import('*')
-Source('DefaultTrace/DefaultTraceWriter.cc')
-Source('GenericTraceWriter.cc')
+
+if ARGUMENTS.get("tu_dortmund", 0) == "1":
+    Source('DefaultTrace/DefaultTraceWriter.cc')
+    Source('GenericTraceWriter.cc')

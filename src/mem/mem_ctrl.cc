@@ -48,7 +48,6 @@
 #include "mem/dram_interface.hh"
 #include "mem/mem_interface.hh"
 #include "mem/nvm_interface.hh"
-#include "sim/cur_tick.hh"
 #include "sim/system.hh"
 #ifdef TU_DORTMUND
 #include <alloca.h>
@@ -59,6 +58,7 @@
 #include <ostream>
 #include "memory_content.hh"
 #include "base/callback.hh"
+#include "sim/cur_tick.hh"
 #endif
 namespace gem5
 {
@@ -211,9 +211,6 @@ MemCtrl::recvAtomicLogic(PacketPtr pkt, MemInterface* mem_intr)
              "is responding");
 
     // do the actual memory access and turn the packet into a response
-    /*if(mem_intr->toHostAddr(pkt->getAddr()))
-        pkt->overwritten = mem_intr->toHostAddr(pkt->getAddr());
-    //std::cout << "Copied Data from Host: " << uint64_t(*pkt->overwritten) << "\n";*/
     mem_intr->access(pkt);
 
     if (pkt->hasData()) {

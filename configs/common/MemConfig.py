@@ -239,8 +239,6 @@ def config_mem(options, system):
                     mem_ctrl = dram_intf
                 else:
                     mem_ctrl = dram_intf.controller()
-
-                # MemoryTracer that listens to all Operations at in mem_ctrl
                 
                 mem_ctrls.append(mem_ctrl)
 
