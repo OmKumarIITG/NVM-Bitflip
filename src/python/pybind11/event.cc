@@ -111,6 +111,7 @@ pybind_init_event(py::module_ &m_native)
     m.def("getMaxTick", &get_max_tick, py::return_value_policy::copy);
     m.def("terminateEventQueueThreads", &terminateEventQueueThreads);
     m.def("exitSimLoop", &exitSimLoop);
+    m.def("resetEventQueueTicks", &resetEventQueueTicks);
     m.def("getEventQueue", []() { return curEventQueue(); },
           py::return_value_policy::reference);
     m.def("setEventQueue", [](EventQueue *q) { return curEventQueue(q); });
@@ -120,6 +121,7 @@ pybind_init_event(py::module_ &m_native)
     py::class_<EventQueue>(m, "EventQueue")
         .def("name",  [](EventQueue *eq) { return eq->name(); })
         .def("dump", &EventQueue::dump)
+        .def("setCurTick", &EventQueue::setCurTick)
         .def("schedule", [](EventQueue *eq, PyEvent *e, Tick t) {
                 eq->schedule(e, t);
             }, py::arg("event"), py::arg("when"))

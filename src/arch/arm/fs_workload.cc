@@ -43,10 +43,12 @@
 #include "arch/arm/faults.hh"
 #include "base/loader/object_file.hh"
 #include "base/loader/symtab.hh"
+#include "base/loader/dtb_file.hh"
 #include "cpu/thread_context.hh"
 #include "dev/arm/gic_v2.hh"
 #include "kern/system_events.hh"
 #include "params/ArmFsWorkload.hh"
+#include "sim/pseudo_inst.hh"
 
 namespace gem5
 {
@@ -106,6 +108,20 @@ FsWorkload::initState()
 
     // FPEXC.EN = 0
 
+    bool dtb_file_specified = params().dtb_filename != "";
+    if (dtb_file_specified && !gem5::pseudo_inst::nvResetRunning) {
+        // Kernel supports flattened device tree and dtb file specified.
+        // Using Device Tree Blob to describe system configuration.
+        inform("Loading DTB file: %s at address %#x\n", params().dtb_filename,
+                params().dtb_addr);
+
+        auto *dtb_file = new loader::DtbFile(params().dtb_filename);
+
+        dtb_file->buildImage().offset(params().dtb_addr)
+            .write(system->physProxy);
+        delete dtb_file;
+    }
+
     for (auto *tc: system->threads) {
         Reset().invoke(tc);
         tc->activate();
@@ -113,7 +129,7 @@ FsWorkload::initState()
 
     auto *arm_sys = dynamic_cast<ArmSystem *>(system);
 
-    if (bootldr) {
+    if (bootldr && !gem5::pseudo_inst::nvResetRunning) {
         bool is_gic_v2 =
             arm_sys->getGIC()->supportsVersion(BaseGic::GicVersion::GIC_V2);
         bootldr->buildImage().write(system->physProxy);

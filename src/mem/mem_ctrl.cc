@@ -39,7 +39,6 @@
  */
 
 #include "mem/mem_ctrl.hh"
-
 #include "base/trace.hh"
 #include "debug/DRAM.hh"
 #include "debug/Drain.hh"
@@ -50,7 +49,17 @@
 #include "mem/mem_interface.hh"
 #include "mem/nvm_interface.hh"
 #include "sim/system.hh"
-
+#if TU_DORTMUND == 1
+#include <alloca.h>
+#include <cstdint>
+#include <fstream>
+#include <ios>
+#include <iostream>
+#include <ostream>
+#include "memory_content.hh"
+#include "base/callback.hh"
+#include "sim/cur_tick.hh"
+#endif
 namespace gem5
 {
 
@@ -78,6 +87,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     commandWindow(p.command_window),
     prevArrival(0),
     stats(*this)
+        
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -94,6 +104,10 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     if (p.disable_sanity_check) {
         port.disableSanityCheck();
     }
+    //call destructor for Tracewriter to write file as it does not happen automatically
+    #if TU_DORTMUND == 1
+    registerExitCallback([this]() { tracer->~GenericTraceWriter(); });
+    #endif
 }
 
 void
@@ -108,10 +122,12 @@ MemCtrl::init()
 
 void
 MemCtrl::startup()
-{
+{   
+    #if TU_DORTMUND == 1
+    parseConfigFile(configPath);
+    #endif
     // remember the memory system mode of operation
     isTimingMode = system()->isTimingMode();
-
     if (isTimingMode) {
         // shift the bus busy time sufficiently far ahead that we never
         // have to worry about negative values when computing the time for
@@ -120,6 +136,59 @@ MemCtrl::startup()
         dram->nextBurstAt = curTick() + dram->commandOffset();
     }
 }
+
+#if TU_DORTMUND == 1
+GenericTraceWriter*
+MemCtrl::CreateNewTraceWriter(std::string writer)
+{
+    GenericTraceWriter *tracer = NULL;
+
+    if( writer == "" )
+        std::cout << "TraceWriter is not set in configuration file!" 
+            << std::endl;
+
+    if( writer == "DefaultTraceWriter" )
+        tracer = new DefaultTraceWriter();
+
+    if( tracer == NULL )
+        std::cout << "Unknown trace writer `" << writer << "'." 
+            << std::endl;
+
+    return tracer;
+}
+
+void
+MemCtrl::parseConfigFile(std::string path) {
+    std::ifstream cFile (path);
+    if (cFile.is_open())
+    {
+        std::string line;
+        while(getline(cFile, line))
+       {
+            line.erase(std::remove_if(line.begin(), line.end(), isspace),
+                                 line.end());
+            if(line.empty() || line[0] == '#')
+            {
+                continue;
+            }
+            auto delimiterPos = line.find("=");
+            auto name = line.substr(0, delimiterPos);
+            auto value = line.substr(delimiterPos + 1);
+            if(name == "trace") {
+                tracer = CreateNewTraceWriter(value);
+            }
+
+            else if(name == "file") {
+                tracer->SetTraceFile(value);
+            }
+        }
+    }
+    else 
+    {
+        std::cerr << "Couldn't open config file for reading.\n";
+    }
+}
+#endif
 
 Tick
 MemCtrl::recvAtomic(PacketPtr pkt)
@@ -194,7 +263,24 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
     assert(!pkt->isWrite());
 
     assert(pkt_count != 0);
-
+    
+    //if traces are enabled 
+    #if TU_DORTMUND == 1
+    // copy memory access for Tracer and put it into map or update values
+    auto it = memory_map.find(pkt->getAddr());
+    if(it == memory_map.end()) {
+        memory_content c;
+        c.setAddress(pkt->getAddr());
+        c.setNewContent(mem_intr->toHostAddr(pkt->getAddr()));
+        c.updateContent(pkt->getAddr(), pkt->isWrite(), pkt->getPtr<uint8_t>(), curTick());
+        memory_map.insert(std::pair<Addr, memory_content>(pkt->getAddr(), c));
+        tracer->SetNextAccess(c);
+    } else {
+            it->second.setCmd(0);
+            it->second.setTick(curTick());
+            tracer->SetNextAccess(it->second);
+    }
+    #endif
     // if the request size is larger than burst size, the pkt is split into
     // multiple packets
     // Note if the pkt starting address is not aligened to burst size, the
@@ -275,9 +361,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
             // log packet
             logRequest(MemCtrl::READ, pkt->requestorId(),
                        pkt->qosValue(), mem_pkt->addr, 1);
-
             mem_intr->readQueueSize++;
-
             // Update stats
             stats.avgRdQLen = totalReadQueueSize + respQueue.size();
         }
@@ -307,7 +391,22 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
     // only add to the write queue here. whenever the request is
     // eventually done, set the readyTime, and call schedule()
     assert(pkt->isWrite());
-
+    //if traces are enabled
+    #if TU_DORTMUND == 1
+    // copy memory access for Tracer and put it into map or update values
+    auto it = memory_map.find(pkt->getAddr());
+    if(it == memory_map.end()) {
+        memory_content c;
+        c.setAddress(pkt->getAddr());
+        c.setNewContent(mem_intr->toHostAddr(pkt->getAddr()));
+        c.updateContent(pkt->getAddr(), pkt->isWrite(), pkt->getPtr<uint8_t>(), curTick());
+        memory_map.insert(std::pair<Addr, memory_content>(pkt->getAddr(), c));
+        tracer->SetNextAccess(c);
+    } else {
+        it->second.updateContent(pkt->getAddr(), pkt->isWrite(), pkt->getPtr<uint8_t>(), curTick());
+        tracer->SetNextAccess(it->second);
+    }
+    #endif
     // if the request size is larger than burst size, the pkt is split into
     // multiple packets
     const Addr base_addr = pkt->getAddr();
@@ -630,7 +729,7 @@ MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency,
     panic_if(!mem_intr->getAddrRange().contains(pkt->getAddr()),
              "Can't handle address range for packet %s\n", pkt->print());
     mem_intr->access(pkt);
-
+    
     // turn packet around to go back to requestor if response expected
     if (needsResponse) {
         // access already turned the packet into a response
@@ -1106,7 +1205,6 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         logResponse(MemCtrl::WRITE, mem_pkt->requestorId(),
                     mem_pkt->qosValue(), mem_pkt->getAddr(), 1,
                     mem_pkt->readyTime - mem_pkt->entryTime);
-
         mem_intr->writeQueueSize--;
 
         // remove the request from the queue - the iterator is no longer valid
@@ -1429,6 +1527,7 @@ MemCtrl::drain()
     // of that as well
     if (totalWriteQueueSize || totalReadQueueSize || !respQEmpty() ||
           !allIntfDrained()) {
+
         DPRINTF(Drain, "Memory controller not drained, write: %d, read: %d,"
                 " resp: %d\n", totalWriteQueueSize, totalReadQueueSize,
                 respQueue.size());

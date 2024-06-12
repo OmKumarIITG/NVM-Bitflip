@@ -48,6 +48,7 @@
 #include "sim/eventq.hh"
 #include "sim/full_system.hh"
 #include "sim/root.hh"
+#include "sim/pseudo_inst.hh"
 
 namespace gem5
 {
@@ -65,6 +66,8 @@ Root::RootStats::RootStats()
     ADD_STAT(finalTick, statistics::units::Tick::get(),
              "Number of ticks from beginning of simulation "
              "(restored from checkpoints and never reset)"),
+    ADD_STAT(nvTerm, statistics::units::Tick::get(),
+             "The current term of the simulation (= number of resets)"),
     ADD_STAT(simFreq, statistics::units::Rate<
                 statistics::units::Tick, statistics::units::Second>::get(),
              "The number of ticks per simulated second"),
@@ -82,6 +85,7 @@ Root::RootStats::RootStats()
     simFreq.scalar(sim_clock::Frequency);
     simTicks.functor([this]() { return curTick() - startTick; });
     finalTick.functor(curTick);
+    nvTerm.functor([this]() { return gem5::pseudo_inst::nvTerm; });
 
     hostMemory
         .functor(memUsage)

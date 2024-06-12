@@ -104,6 +104,7 @@ class Root : public SimObject
         statistics::Formula simSeconds;
         statistics::Value simTicks;
         statistics::Value finalTick;
+        statistics::Value nvTerm;
         statistics::Value simFreq;
         statistics::Value hostSeconds;
 

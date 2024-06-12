@@ -62,6 +62,7 @@
 #include "params/BaseCache.hh"
 #include "params/WriteAllocator.hh"
 #include "sim/cur_tick.hh"
+#include "sim/pseudo_inst.hh"
 
 namespace gem5
 {
@@ -1788,7 +1789,22 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
 void
 BaseCache::memWriteback()
 {
-    tags->forEachBlk([this](CacheBlk &blk) { writebackVisitor(blk); });
+    if (gem5::pseudo_inst::nvResetRunning) {
+        std::cout << "BaseCache received memWriteback while nvresetrunning" << std::endl;
+        tags->forEachBlk([this](CacheBlk &blk) { 
+            if (blk.isSet(CacheBlk::DirtyBit)) {
+                assert(blk.isValid());
+                blk.clearCoherenceBits(CacheBlk::DirtyBit);
+            }
+
+            if (blk.isValid()) {
+                assert(!blk.isSet(CacheBlk::DirtyBit));
+                invalidateBlock(&blk);
+            }
+        });
+    } else {
+        tags->forEachBlk([this](CacheBlk &blk) { writebackVisitor(blk); });
+    }
 }
 
 void

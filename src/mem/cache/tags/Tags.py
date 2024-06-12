@@ -37,7 +37,7 @@ from m5.params import *
 from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
 from m5.objects.IndexingPolicies import *
-
+from m5.objects.ReplacementPolicies import *
 
 class BaseTags(ClockedObject):
     type = "BaseTags"
@@ -144,3 +144,31 @@ class FALRU(BaseTags):
 
     # This tag uses its own embedded indexing
     indexing_policy = NULL
+
+class HybridSetAssoc(BaseTags):
+    type = 'HybridSetAssoc'
+    cxx_header = "mem/cache/tags/hybrid_set_assoc.hh"
+    cxx_class = 'gem5::HybridSetAssoc'
+
+    # Get the cache associativity
+    assoc = Param.Int(Parent.assoc, "associativity")
+
+    # Get the ratio of non-volatile cache blocks
+    nv_block_ratio = Param.Unsigned(Parent.nv_block_ratio,
+         "Percentage of blocks to be set as non-volatile")
+
+    # Get replacement policy from the parent (cache)
+    replacement_policy = Param.BaseReplacementPolicy(
+        Parent.replacement_policy, "Replacement policy")
+
+    db_migration_enabled = Param.Bool(Parent.db_migration_enabled,
+        "Enable migration of predicted dead blocks")
+
+    prediction_table_hash_access = Param.Bool(
+        Parent.prediction_table_hash_access,
+        "Set whether prediction tables should be indexed by cutting off " +
+        "the byte address of the address causing the access " +
+        "or by hashing the pc causing the access")
+
+    data_write_latency = Param.Cycles(Parent.data_write_latency,
+        "Data write access latency")

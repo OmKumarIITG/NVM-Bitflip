@@ -394,6 +394,14 @@ dumpMainQueue()
     }
 }
 
+void
+resetEventQueueTicks()
+{
+    for (uint32_t i = 0; i < numMainEventQueues; ++i) {
+        mainEventQueue[i]->setCurTick(0);
+    }
+}
+
 
 const char *
 Event::description() const

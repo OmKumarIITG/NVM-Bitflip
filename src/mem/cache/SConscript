@@ -29,12 +29,14 @@
 Import('*')
 
 SimObject('Cache.py', sim_objects=[
-    'WriteAllocator', 'BaseCache', 'Cache', 'NoncoherentCache'],
+    'WriteAllocator', 'BaseCache', 'Cache', 'NoncoherentCache', 'HybridCache'],
     enums=['Clusivity'])
 
 Source('base.cc')
 Source('cache.cc')
+Source('hybrid_cache.cc')
 Source('cache_blk.cc')
+Source('hybrid_cache_blk.cc')
 Source('mshr.cc')
 Source('mshr_queue.cc')
 Source('noncoherent_cache.cc')

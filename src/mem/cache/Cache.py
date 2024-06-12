@@ -188,3 +188,108 @@ class NoncoherentCache(BaseCache):
     # This is typically a last level cache and any clean
     # writebacks would be unnecessary traffic to the main memory.
     writeback_clean = False
+
+class HybridBase(ClockedObject):
+    type = "Cache"
+    cxx_header = "mem/cache/cache.hh"
+    cxx_class = "gem5::Cache"
+    size = Param.MemorySize("Capacity")
+    assoc = Param.Unsigned("Associativity")
+
+    tag_latency = Param.Cycles("Tag lookup latency")
+    data_latency = Param.Cycles("Data access latency")
+    response_latency = Param.Cycles("Latency for the return path on a miss");
+
+    warmup_percentage = Param.Percent(0,
+        "Percentage of tags to be touched to warm up the cache")
+
+    max_miss_count = Param.Counter(0,
+        "Number of misses to handle before calling exit")
+
+    mshrs = Param.Unsigned("Number of MSHRs (max outstanding requests)")
+    demand_mshr_reserve = Param.Unsigned(1, "MSHRs reserved for demand access")
+    tgts_per_mshr = Param.Unsigned("Max number of accesses per MSHR")
+    write_buffers = Param.Unsigned(8, "Number of write buffers")
+
+    is_read_only = Param.Bool(False, "Is this cache read only (e.g. inst)")
+
+    prefetcher = Param.BasePrefetcher(NULL,"Prefetcher attached to cache")
+    prefetch_on_access = Param.Bool(False,
+         "Notify the hardware prefetcher on every access (not just misses)")
+    prefetch_on_pf_hit = Param.Bool(False,
+        "Notify the hardware prefetcher on hit on prefetched lines")
+
+    tags = Param.BaseTags(HybridSetAssoc(), "Tag store")
+    replacement_policy = Param.BaseReplacementPolicy(WIRP(),
+        "Replacement policy")
+
+    compressor = Param.BaseCacheCompressor(NULL, "Cache compressor.")
+    replace_expansions = Param.Bool(True, "Apply replacement policy to " \
+        "decide which blocks should be evicted on a data expansion")
+    # When a block passes from uncompressed to compressed, it may become
+    # co-allocatable with another existing entry of the same superblock,
+    # so try move the block to co-allocate it
+    move_contractions = Param.Bool(True, "Try to co-allocate blocks that "
+        "contract")
+
+    sequential_access = Param.Bool(False,
+        "Whether to access tags and data sequentially")
+
+    cpu_side = ResponsePort("Upstream port closer to the CPU and/or device")
+    mem_side = RequestPort("Downstream port closer to memory")
+
+    addr_ranges = VectorParam.AddrRange([AllMemory],
+         "Address range for the CPU-side port (to allow striping)")
+
+    system = Param.System(Parent.any, "System we belong to")
+
+    # Determine if this cache sends out writebacks for clean lines, or
+    # simply clean evicts. In cases where a downstream cache is mostly
+    # exclusive with respect to this cache (acting as a victim cache),
+    # the clean writebacks are essential for performance. In general
+    # this should be set to True for anything but the last-level
+    # cache.
+    writeback_clean = Param.Bool(False, "Writeback clean lines")
+
+    # Control whether this cache should be mostly inclusive or mostly
+    # exclusive with respect to upstream caches. The behaviour on a
+    # fill is determined accordingly. For a mostly inclusive cache,
+    # blocks are allocated on all fill operations. Thus, L1 caches
+    # should be set as mostly inclusive even if they have no upstream
+    # caches. In the case of a mostly exclusive cache, fills are not
+    # allocating unless they came directly from a non-caching source,
+    # e.g. a table walker. Additionally, on a hit from an upstream
+    # cache a line is dropped for a mostly exclusive cache.
+    clusivity = Param.Clusivity('mostly_incl',
+                                "Clusivity with upstream cache")
+
+    # The write allocator enables optimizations for streaming write
+    # accesses by first coalescing writes and then avoiding allocation
+    # in the current cache. Typically, this would be enabled in the
+    # data cache.
+    write_allocator = Param.WriteAllocator(NULL, "Write allocator")
+
+class HybridCache(HybridBase):
+    type = "HybridCache"
+    cxx_header = "mem/cache/hybrid_cache.hh"
+    cxx_class = "gem5::HybridCache"
+    # Latencies for reading from and writing to the cache
+    # may differ from one another.
+    data_read_latency = Param.Cycles("Data read access latency")
+    data_write_latency = Param.Cycles("Data write access latency")
+    # Ratio of non-volatile cache blocks
+    nv_block_ratio = Param.Unsigned(
+        "Percentage of blocks to be set as non-volatile")
+    wi_threshold = Param.Int(0,
+        "Threshold determining when wiTable entry is in- or decremented")
+    db_threshold = Param.Int(8,
+        "Threshold determining whether block is predicted to be dead or alive")
+    db_migration_enabled = Param.Bool(False,
+        "Enable migration of predicted dead blocks")
+    prediction_table_hash_access = Param.Bool(False,
+        "Set whether prediction tables should be indexed by cutting off " +
+        "the byte address of the address causing the access " +
+        "or by hashing the pc causing the access")
+    cm_threshold = Param.Int(8,
+        "Threshold determining after how many read/write accesses the cache " +
+        "block is either migrated or the confidence increased for CMRP")

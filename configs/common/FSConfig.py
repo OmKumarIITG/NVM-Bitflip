@@ -283,7 +283,9 @@ def makeArmSystem(
     if bare_metal:
         # EOT character on UART will end the simulation
         self.realview.uart[0].end_on_eot = True
-        self.workload = ArmFsWorkload(dtb_addr=0)
+        self.workload = ArmFsWorkload(dtb_addr=0x80000000)
+        if dtb_filename and not dtb_filename == "none":
+            self.workload.dtb_filename = binary(dtb_filename)
     else:
         workload = ArmFsLinux()
 
