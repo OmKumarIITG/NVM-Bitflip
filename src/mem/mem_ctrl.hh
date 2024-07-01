@@ -59,7 +59,7 @@
 #include "mem/qport.hh"
 #include "params/MemCtrl.hh"
 #include "sim/eventq.hh"
-#ifdef TU_DORTMUND
+#if TU_DORTMUND == 1
 #include "memory_content.hh"
 #include "traceWriter/GenericTraceWriter.hh"
 #include "traceWriter/DefaultTrace/DefaultTraceWriter.hh"
@@ -507,7 +507,7 @@ class MemCtrl : public qos::MemCtrl
     * Map that stores older memory Contents to corresponding
     * Addrees for BitFlip counting and later Histogramms  
     */
-    #ifdef TU_DORTMUND
+    #if TU_DORTMUND == 1
     std::map<Addr, memory_content> memory_map;
 
     GenericTraceWriter *tracer;
@@ -795,7 +795,7 @@ class MemCtrl : public qos::MemCtrl
     virtual void init() override;
     virtual void startup() override;
     virtual void drainResume() override;
-    #ifdef TU_DORTMUND
+    #if TU_DORTMUND == 1
     static GenericTraceWriter *CreateNewTraceWriter( std::string writer );
     void parseConfigFile(std::string path);
     #endif

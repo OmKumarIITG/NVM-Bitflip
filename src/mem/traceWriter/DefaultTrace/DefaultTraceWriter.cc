@@ -31,7 +31,7 @@
  *                     Website: http://www.cse.psu.edu/~poremba/ )
  *******************************************************************************/
 
-#ifdef TU_DORTMUND
+#if TU_DORTMUND == 1
 #include "DefaultTraceWriter.hh"
 #include <cstdint>
 #include <iostream>
