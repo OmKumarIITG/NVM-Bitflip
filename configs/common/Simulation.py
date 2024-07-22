@@ -45,6 +45,8 @@ from common import CpuConfig
 from common import ObjectList
 
 import m5
+import _m5.stats
+import _m5.event
 from m5.defines import buildEnv
 from m5.objects import *
 from m5.util import *
@@ -282,13 +284,37 @@ def benchCheckpoints(options, maxtick, cptdir):
     num_checkpoints = 0
     max_checkpoints = options.max_checkpoints
 
-    while exit_cause == "checkpoint":
-        m5.checkpoint(joinpath(cptdir, "cpt.%d"))
-        num_checkpoints += 1
-        if num_checkpoints == max_checkpoints:
-            exit_cause = "maximum %d checkpoints dropped" % max_checkpoints
-            break
+    while exit_cause == "checkpoint" or exit_cause == "nv_reset":
+        if exit_cause == "checkpoint":
+            m5.checkpoint(joinpath(cptdir, "cpt.%d"))
+            num_checkpoints += 1
+            if num_checkpoints == max_checkpoints:
+                exit_cause = "maximum %d checkpoints dropped" % max_checkpoints
+                break
 
+        if exit_cause == "nv_reset":
+            # Initialize all SimObjects except the memory-objects
+            print("System Reset!")
+            m5.drain()
+            root = Root.getInstance()
+            for obj in root.descendants():
+                obj.memWriteback()
+            
+            skipNames = ['system.mem_ctrls', 'system.mem_ctrls.dram', 'system.mem_ctrls.dram.power_state', 'system.mem_ctrls.power_state', 'system.membus', 'system.membus.badaddr_responder', 'system.membus.badaddr_responder.power_state', 'system.membus.power_state', 'system.membus.snoop_filter']
+            for obj in root.descendants(): 
+                if not str(obj) in skipNames:
+                    obj.initState()
+            
+            # Reset all Stats
+            # TODO: Add option to dump stats here
+            #root.resetStats()
+            #stats_list = list(_m5.stats.statsList())
+            #for stat in stats_list:
+            #    stat.reset()
+
+            # Reset Ticks (optional)
+            #_m5.event.resetEventQueueTicks()
+        
         exit_event = m5.simulate(maxtick - m5.curTick())
         exit_cause = exit_event.getCause()
 

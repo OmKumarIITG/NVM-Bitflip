@@ -30,7 +30,7 @@
 *   Matt Poremba    ( Email: mrp5060 at psu dot edu 
 *                     Website: http://www.cse.psu.edu/~poremba/ )
 *******************************************************************************/
-#ifdef TU_DORTMUND
+#if TU_DORTMUND == 1
 #include "GenericTraceWriter.hh"
 #include "mem/memory_content.hh"
 

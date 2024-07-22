@@ -76,8 +76,13 @@ namespace gem5
 
 using namespace statistics;
 
+GEM5_DEPRECATED_NAMESPACE(PseudoInst, pseudo_inst);
 namespace pseudo_inst
 {
+
+bool nvResetRunning = false;
+int resetNumber = -1;
+Tick nvTerm = 0;
 
 /**
  * Unique keys to retrieve various params by the initParam pseudo inst.
@@ -359,6 +364,20 @@ m5checkpoint(ThreadContext *tc, Tick delay, Tick period)
         Tick when = curTick() + delay * sim_clock::as_int::ns;
         Tick repeat = period * sim_clock::as_int::ns;
         exitSimLoop("checkpoint", 0, when, repeat);
+    }
+}
+
+void
+nvReset(ThreadContext *tc, int number)
+{
+    if (number > resetNumber) {
+        resetNumber = number;
+        DPRINTF(PseudoInst, "pseudo_inst::m5_nv_reset(), number = %d, resetNumber = %d\n", number, resetNumber);
+        nvResetRunning = true;
+        nvTerm++;
+        exitSimLoop("nv_reset", 0, curTick(), 0);
+    } else {
+        DPRINTF(PseudoInst, "Not resetting. number = %d, resetNumber = %d\n", number, resetNumber);
     }
 }
 

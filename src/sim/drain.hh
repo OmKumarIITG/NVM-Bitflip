@@ -310,7 +310,10 @@ class Drainable
             return;
           case DrainState::Draining:
             _drainState = DrainState::Drained;
-            _drainManager.signalDrainDone();
+            if (!isManualDrain) {
+              _drainManager.signalDrainDone();
+            }
+            isManualDrain = false;
             return;
         }
     }
@@ -342,7 +345,9 @@ class Drainable
      * @ingroup api_drain
      */
     virtual void notifyFork() {};
-
+  public:
+    DrainState manualDrain();
+    void manualDrainResume();
   private:
     /** DrainManager interface to request a drain operation */
     DrainState dmDrain();
@@ -358,6 +363,7 @@ class Drainable
      * into a Drained state even if the calling method is const.
      */
     mutable DrainState _drainState;
+    mutable bool isManualDrain = false;
 };
 
 } // namespace gem5

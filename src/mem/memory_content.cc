@@ -1,4 +1,4 @@
-#ifdef TU_DORTMUND
+#if TU_DORTMUND == 1
 #include "mem/memory_content.hh"
 #include <algorithm>
 #include <bits/stdc++.h>

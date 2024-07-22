@@ -99,6 +99,7 @@ KernelWorkload::initState()
     /**
      * Load the kernel code into memory.
      */
+
     auto mapper = [this](Addr a) {
         return (a & _loadAddrMask) + _loadAddrOffset;
     };

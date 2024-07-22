@@ -86,8 +86,10 @@ FsLinux::initState()
     // Setup boot data structure
     // Check if the kernel image has a symbol that tells us it supports
     // device trees.
+    // @TODO: device tree problems with unikraft v0.17?
     bool kernel_has_fdt_support =
         kernelSymtab.find("unflatten_device_tree") != kernelSymtab.end();
+
     bool dtb_file_specified = params().dtb_filename != "";
 
     if (kernel_has_fdt_support && dtb_file_specified) {

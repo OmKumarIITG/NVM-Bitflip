@@ -31,7 +31,7 @@
 *                     Website: http://www.cse.psu.edu/~poremba/ )
 *******************************************************************************/
 
-#ifdef TU_DORTMUND
+#if TU_DORTMUND == 1
 #ifndef __GENERIC_TRACE_WRITER_H__
 #define __GENERIC_TRACE_WRITER_H__
 #include "mem/memory_content.hh"

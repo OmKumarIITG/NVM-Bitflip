@@ -977,6 +977,8 @@ curEventQueue(EventQueue *q)
 
 void dumpMainQueue();
 
+void resetEventQueueTicks();
+
 class EventManager
 {
   protected:

@@ -49,7 +49,7 @@
 #include "mem/mem_interface.hh"
 #include "mem/nvm_interface.hh"
 #include "sim/system.hh"
-#ifdef TU_DORTMUND
+#if TU_DORTMUND == 1
 #include <alloca.h>
 #include <cstdint>
 #include <fstream>
@@ -105,7 +105,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
         port.disableSanityCheck();
     }
     //call destructor for Tracewriter to write file as it does not happen automatically
-    #ifdef TU_DORTMUND
+    #if TU_DORTMUND == 1
     registerExitCallback([this]() { tracer->~GenericTraceWriter(); });
     #endif
 }
@@ -123,7 +123,7 @@ MemCtrl::init()
 void
 MemCtrl::startup()
 {   
-    #ifdef TU_DORTMUND
+    #if TU_DORTMUND == 1
     parseConfigFile(configPath);
     #endif
     // remember the memory system mode of operation
@@ -137,7 +137,7 @@ MemCtrl::startup()
     }
 }
 
-#ifdef TU_DORTMUND
+#if TU_DORTMUND == 1
 GenericTraceWriter*
 MemCtrl::CreateNewTraceWriter(std::string writer)
 {
@@ -265,7 +265,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
     assert(pkt_count != 0);
     
     //if traces are enabled 
-    #ifdef TU_DORTMUND
+    #if TU_DORTMUND == 1
     // copy memory access for Tracer and put it into map or update values
     auto it = memory_map.find(pkt->getAddr());
     if(it == memory_map.end()) {
@@ -392,7 +392,7 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
     // eventually done, set the readyTime, and call schedule()
     assert(pkt->isWrite());
     //if traces are enabled
-    #ifdef TU_DORTMUND
+    #if TU_DORTMUND == 1
     // copy memory access for Tracer and put it into map or update values
     auto it = memory_map.find(pkt->getAddr());
     if(it == memory_map.end()) {

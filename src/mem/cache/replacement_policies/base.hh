@@ -45,6 +45,7 @@ namespace gem5
  */
 typedef std::vector<ReplaceableEntry*> ReplacementCandidates;
 
+GEM5_DEPRECATED_NAMESPACE(ReplacementPolicy, replacement_policy);
 namespace replacement_policy
 {
 
@@ -109,6 +110,17 @@ class Base : public SimObject
      * @return A shared pointer to the new replacement data.
      */
     virtual std::shared_ptr<ReplacementData> instantiateEntry() = 0;
+
+    /**
+     * Instantiate a replacement data entry.
+     *
+     * @param isVol Data belongs to volatile cache block.
+     * @return A shared pointer to the new replacement data.
+     */
+    virtual std::shared_ptr<ReplacementData> instantiateEntry(bool isVol)
+    {
+        return instantiateEntry();
+    }
 };
 
 } // namespace replacement_policy

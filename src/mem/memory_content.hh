@@ -1,4 +1,4 @@
-#ifdef TU_DORTMUND
+#if TU_DORTMUND == 1
 #ifndef __MEMORY_CONTENT_HH__
 #define __MEMORY_CONTENT_HH__
 #include <bitset>

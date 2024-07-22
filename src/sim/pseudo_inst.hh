@@ -51,12 +51,18 @@
 #include "cpu/thread_context.hh"
 #include "debug/PseudoInst.hh"
 #include "sim/guest_abi.hh"
+#include "sim/cur_tick.hh"
 
 namespace gem5
 {
 
+GEM5_DEPRECATED_NAMESPACE(PseudoInst, pseudo_inst);
 namespace pseudo_inst
 {
+
+// Add boolean to run initState() in fs_workload.cc only half-way.
+extern bool nvResetRunning;
+extern Tick nvTerm;
 
 static inline void
 decodeAddrOffset(Addr offset, uint8_t &func)
@@ -94,6 +100,7 @@ void workend(ThreadContext *tc, uint64_t workid, uint64_t threadid);
 void m5Syscall(ThreadContext *tc);
 void togglesync(ThreadContext *tc);
 void triggerWorkloadEvent(ThreadContext *tc);
+void nvReset(ThreadContext *tc, int number);
 
 /**
  * Execute a decoded M5 pseudo instruction
@@ -213,11 +220,15 @@ pseudoInstWork(ThreadContext *tc, uint8_t func, uint64_t &result)
         invokeSimcall<ABI>(tc, workend);
         return true;
 
+      case M5OP_NV_RESET:
+        invokeSimcall<ABI>(tc, nvReset);
+        return true;
+
       case M5OP_RESERVED1:
       case M5OP_RESERVED2:
       case M5OP_RESERVED3:
       case M5OP_RESERVED4:
-      case M5OP_RESERVED5:
+      //case M5OP_RESERVED5:
         warn("Unimplemented m5 op (%#x)\n", func);
         return false;
 

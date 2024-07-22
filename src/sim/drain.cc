@@ -228,4 +228,17 @@ Drainable::dmDrainResume()
     drainResume();
 }
 
+DrainState
+Drainable::manualDrain()
+{
+    isManualDrain = true;
+    return dmDrain();
+}
+
+void
+Drainable::manualDrainResume()
+{
+    dmDrainResume();
+}
+
 } // namespace gem5
