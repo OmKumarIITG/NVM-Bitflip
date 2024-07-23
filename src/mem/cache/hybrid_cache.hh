@@ -80,6 +80,16 @@ class HybridCache : public Cache
      * an access writing to the non-volatile cache.
      */
     const Cycles dataWriteLatency;
+
+    /**
+     * Energy consumption in nJ per access depending on the type of access
+     * and the cache section that is accessed
+     */
+    const float volReadEnergy;
+    const float nonVolReadEnergy;
+    const float volWriteEnergy;
+    const float nonVolWriteEnergy;
+
   public:
     /** Instantiates a basic cache object. */
     HybridCache(const HybridCacheParams &p);
@@ -95,6 +105,7 @@ class HybridCache : public Cache
         statistics::Scalar noOfVolReads;
         statistics::Scalar noOfNonVolWrites;
         statistics::Scalar noOfVolWrites;
+        statistics::Scalar dynEnergy;
         statistics::Scalar tmpBlockUsages;
     } hybrid_stats;
 

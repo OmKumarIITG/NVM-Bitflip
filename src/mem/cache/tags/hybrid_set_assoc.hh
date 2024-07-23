@@ -20,6 +20,7 @@
 #include "mem/cache/replacement_policies/cm_rp.hh"
 #include "mem/cache/replacement_policies/lru_rp.hh"
 #include "mem/cache/replacement_policies/replaceable_entry.hh"
+#include "mem/cache/replacement_policies/rr_rp.hh"
 #include "mem/cache/replacement_policies/wi_rp.hh"
 #include "mem/cache/tags/base.hh"
 #include "mem/cache/tags/indexing_policies/base.hh"
@@ -390,6 +391,11 @@ class HybridSetAssoc : public BaseTags
             // Choose replacement victim from all replacement candidates
             victim = static_cast<HybridCacheBlk*>(
                                 replacementPolicy->getVictim(entries));
+            replacement_policy::RoundRobin *rrReplacementPolicy = dynamic_cast<
+            replacement_policy::RoundRobin *>(replacementPolicy);
+            if (rrReplacementPolicy) {
+                rrReplacementPolicy->nextVictimCycle(victim->getSet());
+            }
         }
 
         // There is only one eviction for this replacement
@@ -533,12 +539,22 @@ class HybridSetAssoc : public BaseTags
      */
     void resetReplData() {
         for (HybridCacheBlk& blk : blks) {
-            replacementPolicy->invalidate(blk.replacementData);
+            if (blk.isVolatile()) {
+                replacementPolicy->invalidate(blk.replacementData);
+            } else if (!(blk.isVolatile()) && blk.isValid()) {
+                replacementPolicy->reset(blk.replacementData);
+            }
+
         }
         replacement_policy::WI *wiReplacementPolicy = dynamic_cast<
         replacement_policy::WI *>(replacementPolicy);
         if (wiReplacementPolicy) {
             wiReplacementPolicy->clearWiTable();
+        }
+        replacement_policy::RoundRobin *rrReplacementPolicy = dynamic_cast<
+        replacement_policy::RoundRobin *>(replacementPolicy);
+        if (rrReplacementPolicy) {
+            rrReplacementPolicy->resetPointersToVolSection();
         }
     }
 

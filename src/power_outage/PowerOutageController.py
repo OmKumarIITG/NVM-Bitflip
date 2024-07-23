@@ -14,7 +14,7 @@ class PowerOutageController(ClockedObject):
     max_po = Param.Unsigned(0,
         "Maximum number of simulated power outages")
 
-    cpus = VectorParam.O3CPU([], "CPUs affected")
+    cpus = VectorParam.BaseO3CPU([], "CPUs affected")
     l3_cache = Param.HybridCache(NULL, "L3 cache affected")
     l2_caches = VectorParam.HybridCache([], "L2 caches affected")
     l1i_caches = VectorParam.HybridCache([], "L1 instruction caches affected")

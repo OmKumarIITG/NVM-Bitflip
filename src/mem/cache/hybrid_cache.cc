@@ -27,6 +27,10 @@ HybridCache::HybridCache(const HybridCacheParams &p)
     : Cache(p),
       dataReadLatency(p.data_read_latency),
       dataWriteLatency(p.data_write_latency),
+      volReadEnergy(p.vol_read_energy),
+      nonVolReadEnergy(p.non_vol_read_energy),
+      volWriteEnergy(p.vol_write_energy),
+      nonVolWriteEnergy(p.non_vol_write_energy),
       hybrid_stats(*this)
 {
     assert(p.tags);
@@ -209,9 +213,11 @@ HybridCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         if (hyblk->isVolatile()) {
             hybrid_stats.volWrites += pkt->getSize();
             hybrid_stats.noOfVolWrites++;
+            hybrid_stats.dynEnergy += volWriteEnergy;
         } else {
             hybrid_stats.nonVolWrites += pkt->getSize();
             hybrid_stats.noOfNonVolWrites++;
+            hybrid_stats.dynEnergy += nonVolWriteEnergy;
         }
         return true;
     } else if (pkt->cmd == MemCmd::CleanEvict) {
@@ -300,9 +306,11 @@ HybridCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         if (hyblk->isVolatile()) {
             hybrid_stats.volWrites += pkt->getSize();
             hybrid_stats.noOfVolWrites++;
+            hybrid_stats.dynEnergy += volWriteEnergy;
         } else {
             hybrid_stats.nonVolWrites += pkt->getSize();
             hybrid_stats.noOfNonVolWrites++;
+            hybrid_stats.dynEnergy += nonVolWriteEnergy;
         }
         // If this a write-through packet it will be sent to cache below
         return !pkt->writeThrough();
@@ -370,26 +378,34 @@ HybridCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
                 hybrid_stats.volWrites += pkt->getSize();
                 hybrid_stats.volReads += pkt->getSize();
                 hybrid_stats.noOfVolWrites++;
+                hybrid_stats.dynEnergy += volWriteEnergy;
                 hybrid_stats.noOfVolReads++;
+                hybrid_stats.dynEnergy += volReadEnergy;
             } else if (pkt->isRead()) {
                 hybrid_stats.volReads += pkt->getSize();
                 hybrid_stats.noOfVolReads++;
+                hybrid_stats.dynEnergy += volReadEnergy;
             } else if (pkt->isWrite()) {
                 hybrid_stats.volWrites += pkt->getSize();
                 hybrid_stats.noOfVolWrites++;
+                hybrid_stats.dynEnergy += volWriteEnergy;
             }
         } else {
             if (pkt->cmd == MemCmd::SwapReq) {
                 hybrid_stats.nonVolWrites += pkt->getSize();
                 hybrid_stats.nonVolReads += pkt->getSize();
                 hybrid_stats.noOfNonVolWrites++;
+                hybrid_stats.dynEnergy += nonVolWriteEnergy;
                 hybrid_stats.noOfNonVolReads++;
+                hybrid_stats.dynEnergy += nonVolReadEnergy;
             } else if (pkt->isRead()) {
                 hybrid_stats.nonVolReads += pkt->getSize();
                 hybrid_stats.noOfNonVolReads++;
+                hybrid_stats.dynEnergy += nonVolReadEnergy;
             } else if (pkt->isWrite()) {
                 hybrid_stats.nonVolWrites += pkt->getSize();
                 hybrid_stats.noOfNonVolWrites++;
+                hybrid_stats.dynEnergy += nonVolWriteEnergy;
             }
         }
      }
@@ -503,9 +519,11 @@ HybridCache::handleFill(PacketPtr pkt, CacheBlk *blk,
             if (hyblk->isVolatile()) {
                 hybrid_stats.volWrites += blkSize;
                 hybrid_stats.noOfVolWrites++;
+                hybrid_stats.dynEnergy += volWriteEnergy;
             } else {
                 hybrid_stats.nonVolWrites += blkSize;
                 hybrid_stats.noOfNonVolWrites++;
+                hybrid_stats.dynEnergy += nonVolWriteEnergy;
             }
         }
     } else {
@@ -966,6 +984,8 @@ HybridCache::HybridCacheStats::HybridCacheStats(HybridCache &c)
         "number of write accesses to non-volatile cache blocks"),
     ADD_STAT(noOfVolWrites, statistics::units::Count::get(),
         "number of write accesses to volatile cache blocks"),
+    ADD_STAT(dynEnergy, statistics::units::Joule::get(),
+             "Dynamic energy caused by cache accesses (nJ)"),
     ADD_STAT(tmpBlockUsages, statistics::units::Count::get(),
         "number of times the tempBlock was used when handling a response")
 {

@@ -277,6 +277,15 @@ class HybridCache(HybridBase):
     # may differ from one another.
     data_read_latency = Param.Cycles("Data read access latency")
     data_write_latency = Param.Cycles("Data write access latency")
+    # Dynamic Energy Parameters
+    vol_read_energy = Param.Float(
+        "Volatile section read energy per access (nJ)")
+    non_vol_read_energy = Param.Float(
+        "Non-volatile section read energy per access (nJ)")
+    vol_write_energy = Param.Float(
+        "Volatile section write energy per access (nJ)")
+    non_vol_write_energy = Param.Float(
+        "Non-volatile section write energy per access (nJ)")
     # Ratio of non-volatile cache blocks
     nv_block_ratio = Param.Unsigned(
         "Percentage of blocks to be set as non-volatile")

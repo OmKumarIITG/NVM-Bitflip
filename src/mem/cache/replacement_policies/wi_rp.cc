@@ -73,6 +73,17 @@ WI::touch(const std::shared_ptr<ReplacementData>& replacement_data,
 }
 
 void
+WI::reset(const std::shared_ptr<ReplacementData>& replacement_data) const
+{
+    // Set last touch timestamp
+    std::static_pointer_cast<WIReplData>(
+        replacement_data)->lastTouchTick = curTick();
+    std::static_pointer_cast<WIReplData>(
+    replacement_data)->wiCost = 0;
+}
+
+
+void
 WI::reset(const std::shared_ptr<ReplacementData>& replacement_data,
     const PacketPtr pkt)
 {

@@ -133,10 +133,7 @@ class WI : public Base
     }
 
     void reset(const std::shared_ptr<ReplacementData>& replacement_data) const
-                                                                      override
-    {
-    }
-
+                                                                      override;
     /**
      * Instantiate a replacement data entry.
      *

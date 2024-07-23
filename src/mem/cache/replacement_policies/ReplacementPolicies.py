@@ -96,6 +96,20 @@ class LRURP(BaseReplacementPolicy):
     cxx_class = "gem5::replacement_policy::LRU"
     cxx_header = "mem/cache/replacement_policies/lru_rp.hh"
 
+class RRRP(BaseReplacementPolicy):
+    type = 'RRRP'
+    cxx_class = 'gem5::replacement_policy::RoundRobin'
+    cxx_header = "mem/cache/replacement_policies/rr_rp.hh"
+    # Get the cache associativity
+    assoc = Param.Int(Parent.assoc, "associativity")
+    nvBlockRatio = Param.Unsigned(Parent.nv_block_ratio,
+        "Percentage of blocks to be set as non-volatile")
+    # Set the indexing entry size as the block size
+    entry_size = Param.Int(Parent.cache_line_size,
+                           "Indexing entry size in bytes")
+    # Get the size from the parent (cache)
+    size = Param.MemorySize(Parent.size, "capacity in bytes")
+
 class WIRP(BaseReplacementPolicy):
     type = 'WIRP'
     cxx_class = 'gem5::replacement_policy::WI'

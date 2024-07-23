@@ -55,6 +55,10 @@ class L1Cache(HybridCache):
     data_latency = 2
     data_read_latency = 2
     data_write_latency = 8
+    vol_read_energy = 0.009
+    non_vol_read_energy = 0.007
+    vol_write_energy = 0.009
+    non_vol_write_energy = 0.056
     response_latency = 2
     mshrs = 4
     tgts_per_mshr = 20
@@ -72,7 +76,7 @@ class L1_ICache(L1Cache):
     replacement_policy = LRURP()
 
 class L1_DCache(L1Cache):
-    replacement_policy = CMRP()
+    replacement_policy = LRURP()
 
 class L2Cache(HybridCache):
     assoc = 8
@@ -81,6 +85,10 @@ class L2Cache(HybridCache):
     nv_block_ratio = 50
     data_read_latency = 12
     data_write_latency = 24
+    vol_read_energy = 0.036
+    non_vol_read_energy = 0.032
+    vol_write_energy = 0.036
+    non_vol_write_energy = 0.112
     response_latency = 20
     mshrs = 20
     tgts_per_mshr = 12
