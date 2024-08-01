@@ -104,6 +104,7 @@ def build_test_system(np):
             ruby=args.ruby,
             vio_9p=args.vio_9p,
             bootloader=args.bootloader,
+            unikraft_kvm = True
         )
         if args.enable_context_switch_stats_dump:
             test_sys.enable_context_switch_stats_dump = True

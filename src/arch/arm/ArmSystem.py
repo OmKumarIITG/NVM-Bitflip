@@ -153,10 +153,8 @@ class ArmRelease(SimObject):
         return release
 
 
-# @TODO: if kvm + armv8 are selected, call function for_kvm() to remove extensions otherwise privilege level problems with kvm
 class Armv8(ArmRelease):
-    extensions = ["LPAE"]
-    #extensions = ["LPAE", "VIRTUALIZATION", "SECURITY"]
+    extensions = ["LPAE", "VIRTUALIZATION", "SECURITY"]
 
 
 

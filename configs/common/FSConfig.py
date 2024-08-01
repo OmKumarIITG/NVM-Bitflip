@@ -214,12 +214,16 @@ def makeArmSystem(
     ruby=False,
     vio_9p=None,
     bootloader=None,
+    unikraft_kvm=False
 ):
     assert machine_type
 
     pci_devices = []
 
     self = ArmSystem()
+
+    if unikraft_kvm:
+        self.release.for_kvm()
 
     if not mdesc:
         # generic system
