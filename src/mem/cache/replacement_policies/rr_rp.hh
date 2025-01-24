@@ -1,3 +1,4 @@
+#if HYBRID_CACHE == 1
 /**
  * @file
  * Declaration of a round robin replacement policy.
@@ -105,3 +106,4 @@ class RoundRobin : public Base
 } // namespace gem5
 
 #endif // __MEM_CACHE_REPLACEMENT_POLICIES_RR_RP_HH__
+#endif

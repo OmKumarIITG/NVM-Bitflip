@@ -28,20 +28,29 @@
 
 Import('*')
 
-SimObject('Cache.py', sim_objects=[
-    'WriteAllocator', 'BaseCache', 'Cache', 'NoncoherentCache', 'HybridCache'],
-    enums=['Clusivity'])
+if ARGUMENTS.get("hybrid_cache", 0) == "1":
+    SimObject('Cache.py', sim_objects=[
+        'WriteAllocator', 'BaseCache', 'Cache',
+        'NoncoherentCache', 'HybridCache'],
+        enums=['Clusivity'])
+else:
+    SimObject('Cache.py', sim_objects=[
+        'WriteAllocator', 'BaseCache', 'Cache', 'NoncoherentCache'],
+        enums=['Clusivity'])
+
 
 Source('base.cc')
 Source('cache.cc')
-Source('hybrid_cache.cc')
 Source('cache_blk.cc')
-Source('hybrid_cache_blk.cc')
 Source('mshr.cc')
 Source('mshr_queue.cc')
 Source('noncoherent_cache.cc')
 Source('write_queue.cc')
 Source('write_queue_entry.cc')
+
+if ARGUMENTS.get("hybrid_cache", 0) == "1":
+    Source('hybrid_cache.cc')
+    Source('hybrid_cache_blk.cc')
 
 DebugFlag('Cache')
 DebugFlag('CacheComp')

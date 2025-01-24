@@ -428,6 +428,14 @@ for variant_path in variant_paths:
             env.Append(CCFLAGS=['-U CDNCcimFlag'])
             print(">>> CDNCcim modifications are disabled.")
 
+        hybrid_cache_flag = ARGUMENTS.get("hybrid_cache", 0)
+        if hybrid_cache_flag == "1":
+            env.Append(CCFLAGS=['-D HYBRID_CACHE=1'])
+            print(">>> Hybrid cache modifications are enabled.")
+        else:
+            env.Append(CCFLAGS=['-D HYBRID_CACHE=0'])
+            print(">>> Hybrid cache modifications are disabled.")
+
         # As gcc and clang share many flags, do the common parts here
         env.Append(CCFLAGS=['-pipe'])
         env.Append(CCFLAGS=['-fno-strict-aliasing'])

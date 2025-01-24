@@ -28,26 +28,37 @@
 
 Import('*')
 
-SimObject('ReplacementPolicies.py', sim_objects=[
-    'BaseReplacementPolicy', 'DuelingRP', 'FIFORP', 'SecondChanceRP',
-    'LFURP', 'LRURP', 'BIPRP', 'MRURP', 'RandomRP',
-    'WIRP', 'BRRIPRP', 'SHiPRP', 'CMRP', 'RRRP',
-    'SHiPMemRP', 'SHiPPCRP', 'TreePLRURP', 'WeightedLRURP'])
+
+if ARGUMENTS.get("hybrid_cache", 0) == "1":
+    SimObject('ReplacementPolicies.py', sim_objects=[
+        'BaseReplacementPolicy', 'DuelingRP', 'FIFORP', 'SecondChanceRP',
+        'LFURP', 'LRURP', 'BIPRP', 'MRURP', 'RandomRP',
+        'WIRP', 'BRRIPRP', 'SHiPRP', 'CMRP', 'RRRP',
+        'SHiPMemRP', 'SHiPPCRP', 'TreePLRURP', 'WeightedLRURP'])
+else:
+    SimObject('ReplacementPolicies.py', sim_objects=[
+        'BaseReplacementPolicy', 'DuelingRP', 'FIFORP', 'SecondChanceRP',
+        'LFURP', 'LRURP', 'BIPRP', 'MRURP', 'RandomRP',
+        'BRRIPRP', 'SHiPRP', 'SHiPMemRP', 'SHiPPCRP',
+        'TreePLRURP', 'WeightedLRURP'])
 
 Source('bip_rp.cc')
 Source('brrip_rp.cc')
-Source('cm_rp.cc')
 Source('dueling_rp.cc')
 Source('fifo_rp.cc')
 Source('lfu_rp.cc')
 Source('lru_rp.cc')
-Source('wi_rp.cc')
-Source('rr_rp.cc')
 Source('mru_rp.cc')
 Source('random_rp.cc')
 Source('second_chance_rp.cc')
 Source('ship_rp.cc')
 Source('tree_plru_rp.cc')
 Source('weighted_lru_rp.cc')
+
+if ARGUMENTS.get("hybrid_cache", 0) == "1":
+    Source('wi_rp.cc')
+    Source('cm_rp.cc')
+    Source('rr_rp.cc')
+
 
 GTest('replaceable_entry.test', 'replaceable_entry.test.cc')

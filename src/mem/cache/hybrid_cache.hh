@@ -1,3 +1,4 @@
+#if HYBRID_CACHE == 1
 /**
  * @file
  * Describes a hybrid cache with both volatile and non-volatile cache blocks
@@ -146,3 +147,4 @@ class HybridCache : public Cache
 } // namespace gem5
 
 #endif // __MEM_HYBRID_CACHE_HH__
+#endif

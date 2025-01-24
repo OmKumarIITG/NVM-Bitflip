@@ -1,3 +1,4 @@
+#if HYBRID_CACHE == 1
 /**
  * @file
  * Declaration of a hybrid set associative tag store.
@@ -589,3 +590,4 @@ class HybridSetAssoc : public BaseTags
 } // namespace gem5
 
 #endif //__MEM_CACHE_TAGS_HYBRID_SET_ASSOC_HH__
+#endif

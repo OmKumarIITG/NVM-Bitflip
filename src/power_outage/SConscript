@@ -1,6 +1,0 @@
-Import('*')
-
-SimObject('PowerOutageController.py', sim_objects=['PowerOutageController'])
-Source('power_outage_controller.cc')
-
-DebugFlag('PowerOutage')

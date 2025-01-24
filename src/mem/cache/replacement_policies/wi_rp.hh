@@ -1,3 +1,4 @@
+#if HYBRID_CACHE == 1
 /**
  * @file
  * Declaration of a Write Intensity based replacement policy.
@@ -242,3 +243,4 @@ class WI : public Base
 } // namespace gem5
 
 #endif // __MEM_CACHE_REPLACEMENT_POLICIES_WI_RP_HH__
+#endif

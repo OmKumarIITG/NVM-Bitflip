@@ -1,3 +1,4 @@
+#if HYBRID_CACHE == 1
 #include "mem/cache/replacement_policies/cm_rp.hh"
 
 #include <cassert>
@@ -193,3 +194,4 @@ CM::findLeastWriteIntensiveBlock(std::vector<ReplaceableEntry*> blks)
 
 } // namespace replacement_policy
 } // namespace gem5
+#endif

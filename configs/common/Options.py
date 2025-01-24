@@ -107,8 +107,12 @@ def addNoISAOptions(parser):
     # Check for extra nvmain configuration override options
     for arg in sys.argv:
         if arg[:9] == "--nvmain-":
-            parser.add_argument(arg.split('=')[0], type=str, default="NULL",
-                       help="Set NVMain configuration value for a parameter")
+            parser.add_argument(
+                arg.split("=")[0],
+                type=str,
+                default="NULL",
+                help="Set NVMain configuration value for a parameter",
+            )
 
     parser.add_argument("-n", "--num-cpus", type=int, default=1)
     parser.add_argument(
@@ -127,7 +131,6 @@ def addNoISAOptions(parser):
         help="""Top-level clock for blocks running at system
                       speed""",
     )
-    parser.add_argument("--power-outage", action="store_true")
 
     # Memory Options
     parser.add_argument(

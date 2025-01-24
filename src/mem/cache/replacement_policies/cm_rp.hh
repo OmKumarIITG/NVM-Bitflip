@@ -1,3 +1,4 @@
+#if HYBRID_CACHE == 1
 /**
  * @file
  * Declaration of a replacement policy featuring confidence values
@@ -280,3 +281,4 @@ class CM : public Base
 } // namespace gem5
 
 #endif // __MEM_CACHE_REPLACEMENT_POLICIES_CM_RP_HH__
+#endif

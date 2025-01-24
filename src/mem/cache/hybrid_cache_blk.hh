@@ -1,3 +1,4 @@
+#if HYBRID_CACHE == 1
 #ifndef __MEM_CACHE_HYBRID_CACHE_BLK_HH__
 #define __MEM_CACHE_HYBRID_CACHE_BLK_HH__
 
@@ -66,3 +67,4 @@ class HybridCacheBlkPrintWrapper : public Printable
 } // namespace gem5
 
 #endif //__MEM_CACHE_HYBRID_CACHE_BLK_HH__
+#endif

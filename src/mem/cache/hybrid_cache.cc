@@ -1,3 +1,4 @@
+#if HYBRID_CACHE == 1
 /**
  * @file
  * Definition of HybridCache functions.
@@ -991,3 +992,4 @@ HybridCache::HybridCacheStats::HybridCacheStats(HybridCache &c)
 {
 }
 } // namespace gem5
+#endif

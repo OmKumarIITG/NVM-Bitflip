@@ -35,24 +35,6 @@ class BaseReplacementPolicy(SimObject):
     cxx_class = "gem5::replacement_policy::Base"
     cxx_header = "mem/cache/replacement_policies/base.hh"
 
-class CMRP(BaseReplacementPolicy):
-    type = 'CMRP'
-    cxx_class = 'gem5::replacement_policy::CM'
-    cxx_header = "mem/cache/replacement_policies/cm_rp.hh"
-    table_entries = Param.Unsigned(256,
-        "Number of entries in the previous region table")
-    block_size = Param.Int(Parent.cache_line_size, "block size in bytes")
-    write_threshold = Param.Int(Parent.cm_threshold,
-        "Threshold determining after how many write accesses the cache " +
-        "block is either migrated or the confidence increased")
-    read_threshold = Param.Int(Parent.cm_threshold,
-        "Threshold determining after how many read accesses the cache " +
-        "block is either migrated or the confidence increased")
-    prediction_table_hash_access = Param.Bool(
-        Parent.prediction_table_hash_access,
-        "Set whether prediction tables should be indexed by cutting off " +
-        "the byte address of the address causing the access " +
-        "or by hashing the pc causing the access")
 
 class DuelingRP(BaseReplacementPolicy):
     type = "DuelingRP"
@@ -96,39 +78,6 @@ class LRURP(BaseReplacementPolicy):
     cxx_class = "gem5::replacement_policy::LRU"
     cxx_header = "mem/cache/replacement_policies/lru_rp.hh"
 
-class RRRP(BaseReplacementPolicy):
-    type = 'RRRP'
-    cxx_class = 'gem5::replacement_policy::RoundRobin'
-    cxx_header = "mem/cache/replacement_policies/rr_rp.hh"
-    # Get the cache associativity
-    assoc = Param.Int(Parent.assoc, "associativity")
-    nvBlockRatio = Param.Unsigned(Parent.nv_block_ratio,
-        "Percentage of blocks to be set as non-volatile")
-    # Set the indexing entry size as the block size
-    entry_size = Param.Int(Parent.cache_line_size,
-                           "Indexing entry size in bytes")
-    # Get the size from the parent (cache)
-    size = Param.MemorySize(Parent.size, "capacity in bytes")
-
-class WIRP(BaseReplacementPolicy):
-    type = 'WIRP'
-    cxx_class = 'gem5::replacement_policy::WI'
-    cxx_header = "mem/cache/replacement_policies/wi_rp.hh"
-    table_entries = Param.Unsigned(256,
-        "Number of entries in the write intensity " +
-        "and dead block prediction state tables")
-    block_size = Param.Int(Parent.cache_line_size, "block size in bytes")
-    wi_threshold = Param.Int(Parent.wi_threshold,
-        "Threshold determining when wiTable entry is in- or decremented")
-    db_threshold = Param.Int(Parent.db_threshold,
-        "Threshold determining whether block is predicted to be dead or alive")
-    db_migration_enabled = Param.Bool(Parent.db_migration_enabled,
-        "Enable migration of predicted dead blocks")
-    prediction_table_hash_access = Param.Bool(
-        Parent.prediction_table_hash_access,
-        "Set whether prediction tables should be indexed by cutting off " +
-        "the byte address of the address causing the access " +
-        "or by hashing the pc causing the access")
 
 class BIPRP(LRURP):
     type = "BIPRP"
@@ -226,3 +175,76 @@ class WeightedLRURP(LRURP):
     type = "WeightedLRURP"
     cxx_class = "gem5::replacement_policy::WeightedLRU"
     cxx_header = "mem/cache/replacement_policies/weighted_lru_rp.hh"
+
+
+class RRRP(BaseReplacementPolicy):
+    type = "RRRP"
+    cxx_class = "gem5::replacement_policy::RoundRobin"
+    cxx_header = "mem/cache/replacement_policies/rr_rp.hh"
+    # Get the cache associativity
+    assoc = Param.Int(Parent.assoc, "associativity")
+    nvBlockRatio = Param.Unsigned(
+        Parent.nv_block_ratio, "Percentage of blocks to be set as non-volatile"
+    )
+    # Set the indexing entry size as the block size
+    entry_size = Param.Int(
+        Parent.cache_line_size, "Indexing entry size in bytes"
+    )
+    # Get the size from the parent (cache)
+    size = Param.MemorySize(Parent.size, "capacity in bytes")
+
+
+class WIRP(BaseReplacementPolicy):
+    type = "WIRP"
+    cxx_class = "gem5::replacement_policy::WI"
+    cxx_header = "mem/cache/replacement_policies/wi_rp.hh"
+    table_entries = Param.Unsigned(
+        256,
+        "Number of entries in the write intensity "
+        + "and dead block prediction state tables",
+    )
+    block_size = Param.Int(Parent.cache_line_size, "block size in bytes")
+    wi_threshold = Param.Int(
+        Parent.wi_threshold,
+        "Threshold determining when wiTable entry is in- or decremented",
+    )
+    db_threshold = Param.Int(
+        Parent.db_threshold,
+        "Threshold determining whether block is predicted to be dead or alive",
+    )
+    db_migration_enabled = Param.Bool(
+        Parent.db_migration_enabled,
+        "Enable migration of predicted dead blocks",
+    )
+    prediction_table_hash_access = Param.Bool(
+        Parent.prediction_table_hash_access,
+        "Set whether prediction tables should be indexed by cutting off "
+        + "the byte address of the address causing the access "
+        + "or by hashing the pc causing the access",
+    )
+
+
+class CMRP(BaseReplacementPolicy):
+    type = "CMRP"
+    cxx_class = "gem5::replacement_policy::CM"
+    cxx_header = "mem/cache/replacement_policies/cm_rp.hh"
+    table_entries = Param.Unsigned(
+        256, "Number of entries in the previous region table"
+    )
+    block_size = Param.Int(Parent.cache_line_size, "block size in bytes")
+    write_threshold = Param.Int(
+        Parent.cm_threshold,
+        "Threshold determining after how many write accesses the cache "
+        + "block is either migrated or the confidence increased",
+    )
+    read_threshold = Param.Int(
+        Parent.cm_threshold,
+        "Threshold determining after how many read accesses the cache "
+        + "block is either migrated or the confidence increased",
+    )
+    prediction_table_hash_access = Param.Bool(
+        Parent.prediction_table_hash_access,
+        "Set whether prediction tables should be indexed by cutting off "
+        + "the byte address of the address causing the access "
+        + "or by hashing the pc causing the access",
+    )

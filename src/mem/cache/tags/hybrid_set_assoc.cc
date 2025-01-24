@@ -1,3 +1,4 @@
+#if HYBRID_CACHE == 1
 /**
  * @file
  * Definitions of a hybrid set associative tag store.
@@ -300,3 +301,4 @@ HybridSetAssoc::HybridTagStats::regStats()
 }
 
 } // namespace gem5
+#endif

@@ -1,3 +1,4 @@
+#if HYBRID_CACHE == 1
 #include "mem/cache/replacement_policies/wi_rp.hh"
 
 #include <cassert>
@@ -266,3 +267,4 @@ WI::clearWiTable()
 
 } // namespace replacement_policy
 } // namespace gem5
+#endif

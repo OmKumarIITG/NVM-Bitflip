@@ -1,3 +1,4 @@
+#if HYBRID_CACHE == 1
 #include "mem/cache/hybrid_cache_blk.hh"
 
 #include "base/cprintf.hh"
@@ -18,3 +19,4 @@ HybridCacheBlkPrintWrapper::print(std::ostream &os, int verbosity,
 }
 
 } // namespace gem5
+#endif

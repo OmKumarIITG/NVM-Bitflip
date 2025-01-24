@@ -1,3 +1,4 @@
+#if HYBRID_CACHE == 1
 #include "mem/cache/replacement_policies/rr_rp.hh"
 
 #include <cassert>
@@ -85,3 +86,4 @@ RoundRobin::nextVictimCycle(unsigned setNo) {
 
 } // namespace replacement_policy
 } // namespace gem5
+#endif

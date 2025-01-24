@@ -76,9 +76,8 @@ LRU::getVictim(const ReplacementCandidates& candidates) const
     assert(candidates.size() > 0);
 
     // Visit all candidates to find victim
-    ReplaceableEntry* victim = candidates[candidates.size()-1];
-    for (int i= candidates.size()-1; i >= 0;i--) {
-        const auto& candidate = candidates[i];
+    ReplaceableEntry* victim = candidates[0];
+    for (const auto& candidate : candidates) {
         // Update victim entry if necessary
         if (std::static_pointer_cast<LRUReplData>(
                     candidate->replacementData)->lastTouchTick <
