@@ -412,13 +412,13 @@ for variant_path in variant_paths:
             print("Using ARM address fixup in NVMain2.0.")
 
         # Unified Gem5 build feature config flags.
-        tu_dortmund_flag = ARGUMENTS.get("tu_dortmund", 0)
+        tu_dortmund_flag = ARGUMENTS.get("bitflip", 0)
         if tu_dortmund_flag == "1": # Needs to be compared as argument is string
             env.Append(CCFLAGS=['-D TU_DORTMUND=1'])
-            print("TU Dortmund modifications are enabled.")
+            print("Bitflip modifications are enabled.")
         else:
             env.Append(CCFLAGS=['-D TU_DORTMUND=0'])
-            print("TU Dortmund modifications are disabled.")
+            print("Bitflip modifications are disabled.")
 
         CDNCcim_flag = ARGUMENTS.get("CDNCcim", 0)
         if CDNCcim_flag == "1": # Needs to be compared as argument is string

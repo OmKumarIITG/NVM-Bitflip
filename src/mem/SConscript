@@ -111,7 +111,7 @@ Source('translating_port_proxy.cc')
 Source('se_translating_port_proxy.cc')
 Source('page_table.cc')
 
-if ARGUMENTS.get("tu_dortmund", 0) == "1":
+if ARGUMENTS.get("bitflip", 0) == "1":
     Source('memory_content.cc')
 
 if env['HAVE_DRAMSIM']:
