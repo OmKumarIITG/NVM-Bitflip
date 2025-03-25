@@ -405,9 +405,9 @@ for variant_path in variant_paths:
     if env['GCC'] or env['CLANG']:
         # Control NVMain2.0 architecture workaround
         architecture_flag = ARGUMENTS.get("architecture")
-        if(architecture_flag == "x86"):
+        if(architecture_flag == "X86"):
             env.Append(CCFLAGS=['-D IS_X86_ISA'])
-            print("Using x86 address fixup in NVMain2.0.")
+            print("Using X86 address fixup in NVMain2.0.")
         else:
             print("Using ARM address fixup in NVMain2.0.")
 
