@@ -45,6 +45,7 @@
 #include "Simulators/gem5/nvmain_mem.hh"
 #include "SimInterface/Gem5Interface/Gem5Interface.h"
 #include "Utils/HookFactory.h"
+#include "FaultModels/NeuroHammer/NeuroHammer.h"
 
 #include "base/random.hh"
 #include "base/statistics.hh"
@@ -62,6 +63,7 @@ using namespace NVM;
 using namespace gem5;
 using namespace gem5::memory;
 
+#define IS_X86_ISA 1 //quick hack to choose X86 ISA
 
 // This members are singleton values used to hold the main instance of
 // NVMain and it's wake/sleep (i.e., timing/atomic) status. These are
@@ -507,7 +509,6 @@ bool NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt) {
  * https://developer.arm.com/documentation/den0001/latest
  */
 #ifdef IS_X86_ISA
-    
     if (masterInstance != &memory) {
         addressFixUp = 0x40000000;
     }
@@ -521,6 +522,13 @@ bool NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt) {
 
     request->access = UNKNOWN_ACCESS;
     request->address.SetPhysicalAddress(pkt->req->getPaddr() - addressFixUp);
+
+    DPRINTF(NVMain,"nvmain_mem.cc: NVMain address is : 0x%x for gem5 address: 0x%x and fixup is 0x%x\n", request->address.GetPhysicalAddress(), pkt->req->getPaddr(), addressFixUp);
+    if(request->address.GetPhysicalAddress()!=pkt->req->getPaddr()){
+        DPRINTF(NVMain,"nvmain_mem.cc: NVMain address is : 0x%x for gem5 address: 0x%x and fixup is 0x%x WHICH ARE NOT EQUAL\n", request->address.GetPhysicalAddress(), pkt->req->getPaddr(), addressFixUp);    
+    }
+
+    request->addressFixUp = addressFixUp;
     request->status = MEM_REQUEST_INCOMPLETE;
     request->type = (pkt->isRead()) ? READ : WRITE;
     request->owner = (NVMObject *)&memory;
@@ -721,8 +729,28 @@ bool NVMainMemory::RequestComplete(NVM::NVMainRequest *req) {
             }
         }
 
-        DPRINTF(NVMain, "Completed Mem request for 0x%x of type %s\n", req->address.GetPhysicalAddress( ), (isRead ? "READ" : "WRITE"));
+        DPRINTF(NVMain, "nvmain_mem.cc:Completed Mem request for 0x%x of type %s\n", req->address.GetPhysicalAddress( ), (isRead ? "READ" : "WRITE"));
 
+        std::cout << GetEventQueue()->GetCurrentCycle() << " nvmain_mem.cc: Command Completed "
+        << "Type: " << req->type;
+        
+        //not all packets have valid virtual address
+        if (memRequest->packet && memRequest->packet->req->hasVaddr()) {
+            std::cout << " for virtual address 0x" << std::hex << memRequest->packet->req->getVaddr()
+                     << " physical address 0x" << req->address.GetPhysicalAddress() << std::dec << std::endl;
+        } else {
+            std::cout << " for physical address 0x" << std::hex 
+                     << req->address.GetPhysicalAddress() << std::dec << std::endl;
+        }
+
+        // NeuroHammer fault injection after read/write
+        if (m_nvmainConfig->KeyExists("FaultModel") && m_nvmainConfig->GetString("FaultModel") == "NeuroHammer") {
+            NeuroHammer* neuroHammer = NeuroHammer::GetInstance();
+            if (neuroHammer != nullptr) {
+                neuroHammer->InjectFault(req);
+            }
+        }
+        
         if (respond) {
             ownerInstance->responseQueue.push_back(memRequest->packet);
             ownerInstance->ScheduleResponse();

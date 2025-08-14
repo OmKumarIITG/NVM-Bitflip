@@ -41,6 +41,7 @@
 #include "src/Rank.h"
 #include "src/SubArray.h"
 #include "include/NVMHelpers.h"
+#include "FaultModels/NeuroHammer/NeuroHammer.h"
 
 #include <sstream>
 #include <cassert>
@@ -1590,6 +1591,12 @@ bool MemoryController::IssueMemoryCommands( NVMainRequest *req )
             && effectiveRow[rank][bank][subarray] == row 
             && effectiveMuxedRow[rank][bank][subarray] == muxLevel )
     {
+
+        //row buffer hit
+
+        req->isRowBufferHit = true;
+
+
         starvationCounter[rank][bank][subarray]++;
 
         req->issueCycle = GetEventQueue()->GetCurrentCycle();

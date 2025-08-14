@@ -62,6 +62,12 @@
 #include "src/NVMObject.h"
 #include "src/SimInterface.h"
 #include "src/TagGenerator.h"
+#include "FaultModels/NeuroHammer/NeuroHammer.h"
+
+namespace NVM {
+  class NeuroHammer;  // Forward declaration
+}
+
 
 class NVMainMemory : public gem5::memory::AbstractMemory, public NVM::NVMObject
 {
@@ -201,7 +207,7 @@ class NVMainMemory : public gem5::memory::AbstractMemory, public NVM::NVMObject
     std::map<NVM::NVMainRequest *, NVMainMemoryRequest *> m_request_map;
 
   protected:
-
+    friend class NVM::NeuroHammer;
     gem5::Tick doAtomicAccess(gem5::PacketPtr pkt);
     void doFunctionalAccess(gem5::PacketPtr pkt);
     void recvRetry();

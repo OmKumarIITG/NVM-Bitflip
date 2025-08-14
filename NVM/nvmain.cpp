@@ -45,6 +45,7 @@
 #include "include/NVMainRequest.h"
 #include "include/NVMHelpers.h"
 #include "Prefetchers/PrefetcherFactory.h"
+#include "FaultModels/NeuroHammer/NeuroHammer.h"
 
 #include <sstream>
 #include <cassert>
@@ -70,6 +71,12 @@ NVMain::NVMain( )
 
 NVMain::~NVMain( )
 {
+
+    
+    // Clean up NeuroHammer singleton
+    NeuroHammer::DestroyInstance();
+
+
     if( config ) 
         delete config;
     
@@ -119,6 +126,33 @@ void NVMain::SetConfig( Config *conf, std::string memoryName, bool createChildre
     params->SetParams( conf );
     SetParams( params );
 
+    NeuroHammer* neuroHammer = nullptr;
+
+    // Initialize NeuroHammer singleton if FaultModel is specified
+    if (conf->KeyExists("FaultModel") && conf->GetString("FaultModel") == "NeuroHammer") {
+        std::cout << "NVMain: Initializing NeuroHammer fault model..." << std::endl;
+        neuroHammer = NeuroHammer::GetInstance();
+        neuroHammer->SetConfig(conf, createChildren);
+        std::cout << "NVMain: NeuroHammer fault model initialized successfully." << std::endl;
+    }
+
+    // // NEUROHAMMER PARAMETER VERIFICATION HERE:
+    // std::cout << "=== NeuroHammer Parameters Verification ===" << std::endl;
+    // std::cout << "HC_first: " << params->HC_first << std::endl;
+    // std::cout << "HC_last: " << params->HC_last << std::endl;
+    // std::cout << "HC_last_bitflip_rate: " << params->HC_last_bitflip_rate << std::endl;
+    // std::cout << "inc_dist_1: " << params->inc_dist_1 << std::endl;
+    // std::cout << "inc_dist_2: " << params->inc_dist_2 << std::endl;
+    // std::cout << "inc_dist_3: " << params->inc_dist_3 << std::endl;
+    // std::cout << "inc_dist_4: " << params->inc_dist_4 << std::endl;
+    // std::cout << "inc_dist_5: " << params->inc_dist_5 << std::endl;
+    // std::cout << "proba_1_bit_flipped: " << params->proba_1_bit_flipped << std::endl;
+    // std::cout << "proba_2_bit_flipped: " << params->proba_2_bit_flipped << std::endl;
+    // std::cout << "proba_3_bit_flipped: " << params->proba_3_bit_flipped << std::endl;
+    // std::cout << "proba_4_bit_flipped: " << params->proba_4_bit_flipped << std::endl;
+    // std::cout << "flip_mask: 0x" << std::hex << params->flip_mask << std::dec << std::endl;
+    // std::cout << "=============================================" << std::endl;
+
     StatName( memoryName );
 
     config = conf;
@@ -164,6 +198,13 @@ void NVMain::SetConfig( Config *conf, std::string memoryName, bool createChildre
         translator->SetConfig( config, createChildren );
         translator->SetTranslationMethod( method );
         translator->SetDefaultField( CHANNEL_FIELD );
+
+        //just before assigning decoder to NVMObject, assign it to NeuroHammer
+        if (neuroHammer)
+        {
+            neuroHammer->SetTranslator(translator);
+            std::cout << "NVMain: Address translator has been set for NeuroHammer." << std::endl;
+        }
 
         SetDecoder( translator );
 

@@ -135,6 +135,8 @@ class NVMainRequest
         writeProgress = 0;
         cancellations = 0;
         owner = NULL;
+        isRowBufferHit = false; //initialise this variable
+        addressFixUp = 0;
     };
 
     ~NVMainRequest( )
@@ -157,6 +159,9 @@ class NVMainRequest
     uint64_t programCounter;       //< Program counter of CPU issuing request
     ncounter_t burstCount;         //< Number of bursts (used for variable-size requests.
     NVMObject *owner;              //< Pointer to the object that created this request
+
+    bool isRowBufferHit;           //< Whether this request hit in the row buffer
+    uint64_t addressFixUp;         //< Address fix-up value for gem5 to NVMain address translation
 
     ncycle_t arrivalCycle;         //< When the request arrived at the memory controller
     ncycle_t queueCycle;           //< When the memory controller accepted (queued) the request
