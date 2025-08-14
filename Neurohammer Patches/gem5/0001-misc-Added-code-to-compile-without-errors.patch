@@ -1,0 +1,46 @@
+From 14f080700d77dc645c629076468dc255e985d712 Mon Sep 17 00:00:00 2001
+From: OmKumarIITG <omsingh95405@gmail.com>
+Date: Thu, 14 Aug 2025 19:34:33 +0530
+Subject: [PATCH 1/2] misc: Added code to compile without errors
+
+Change-Id: I629e5d0bc0148029b10ed5985d7ee190d43b86f0
+---
+ src/arch/x86/pseudo_inst_abi.hh | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+
+diff --git a/src/arch/x86/pseudo_inst_abi.hh b/src/arch/x86/pseudo_inst_abi.hh
+index e465c7abd5..f00da571e6 100644
+--- a/src/arch/x86/pseudo_inst_abi.hh
++++ b/src/arch/x86/pseudo_inst_abi.hh
+@@ -84,5 +84,28 @@ struct Argument<X86PseudoInstABI, uint64_t>
+     }
+ };
+ 
++//added code
++template <>
++struct Argument<X86PseudoInstABI, int>
++{
++    static int
++    get(ThreadContext *tc, X86PseudoInstABI::State &state)
++    {
++        // The first 6 integer arguments are passed in registers, the rest
++        // are passed on the stack.
++
++        panic_if(state >= 6, "Too many psuedo inst arguments.");
++
++        using namespace X86ISA;
++
++        constexpr RegId int_reg_map[] = {
++            int_reg::Rdi, int_reg::Rsi, int_reg::Rdx,
++            int_reg::Rcx, int_reg::R8, int_reg::R9
++        };
++
++        // Get the 64-bit register value and cast it to a 32-bit int.
++        return (int32_t)tc->getReg(int_reg_map[state++]);
++    }
++};
+ } // namespace guest_abi
+ } // namespace gem5
+-- 
+2.43.0
+

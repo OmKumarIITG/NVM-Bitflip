@@ -1,0 +1,25 @@
+From 7a9738cbd3189c0731e885c9906e4afd28b36f93 Mon Sep 17 00:00:00 2001
+From: OmKumarIITG <omsingh95405@gmail.com>
+Date: Thu, 14 Aug 2025 19:38:33 +0530
+Subject: [PATCH 2/2] misc: Update .gitignore
+
+Change-Id: I3a6f79cc927c6456bd9cc4e09c1406daefd97810
+---
+ .gitignore | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/.gitignore b/.gitignore
+index cb72bd51ef..2a09a30f9e 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -38,3 +38,7 @@ gem5.terminal
+ traceFiles/
+ 
+ system/arm/bootloader/arm64/boot_foundation.arm64
++
++tutorial_scripts/
++gem5_resources/
++out.txt
+-- 
+2.43.0
+

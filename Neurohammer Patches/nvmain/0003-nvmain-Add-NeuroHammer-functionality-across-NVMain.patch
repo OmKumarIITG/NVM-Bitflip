@@ -1,0 +1,793 @@
+From f180ff11f151c1830823d06e587edbafea0ad72e Mon Sep 17 00:00:00 2001
+From: OmKumarIITG <omsingh95405@gmail.com>
+Date: Thu, 14 Aug 2025 19:59:08 +0530
+Subject: [PATCH 3/3] nvmain: Add NeuroHammer functionality across NVMain
+
+---
+ .gitignore                              |   1 +
+ FaultModels/FaultModelFactory.cpp       |  21 ++
+ FaultModels/FaultModelFactory.h         |  17 ++
+ FaultModels/NeuroHammer/NeuroHammer.cpp | 344 ++++++++++++++++++++++++
+ FaultModels/NeuroHammer/NeuroHammer.h   |  69 +++++
+ FaultModels/NeuroHammer/SConscript      |  43 +++
+ NVM/nvmain.cpp                          |  41 +++
+ Simulators/gem5/nvmain_mem.cc           |  32 ++-
+ Simulators/gem5/nvmain_mem.hh           |   8 +-
+ include/NVMainRequest.h                 |   5 +
+ src/MemoryController.cpp                |   7 +
+ src/SConscript                          |   1 +
+ 12 files changed, 586 insertions(+), 3 deletions(-)
+ create mode 100644 FaultModels/FaultModelFactory.cpp
+ create mode 100644 FaultModels/FaultModelFactory.h
+ create mode 100644 FaultModels/NeuroHammer/NeuroHammer.cpp
+ create mode 100644 FaultModels/NeuroHammer/NeuroHammer.h
+ create mode 100644 FaultModels/NeuroHammer/SConscript
+
+diff --git a/.gitignore b/.gitignore
+index 567609b..1dd2dd0 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1 +1,2 @@
+ build/
++out.txt
+\ No newline at end of file
+diff --git a/FaultModels/FaultModelFactory.cpp b/FaultModels/FaultModelFactory.cpp
+new file mode 100644
+index 0000000..ba4e728
+--- /dev/null
++++ b/FaultModels/FaultModelFactory.cpp
+@@ -0,0 +1,21 @@
++#include "FaultModels/FaultModelFactory.h"
++#include "FaultModels/ECP/ECP.h"
++#include "FaultModels/NeuroHammer/NeuroHammer.h"
++
++using namespace NVM;
++
++FaultModel *FaultModelFactory::CreateFaultModel(std::string model)
++{
++    FaultModel *faultModel = NULL;
++
++    if (model == "ECP")
++    {
++        faultModel = NULL; // currently not implemented
++    }
++    else if (model == "NeuroHammer")
++    {
++        faultModel = new NeuroHammer();
++    }
++
++    return faultModel;
++} 
+\ No newline at end of file
+diff --git a/FaultModels/FaultModelFactory.h b/FaultModels/FaultModelFactory.h
+new file mode 100644
+index 0000000..ef58d3d
+--- /dev/null
++++ b/FaultModels/FaultModelFactory.h
+@@ -0,0 +1,17 @@
++#ifndef __FAULTMODELFACTORY_H__
++#define __FAULTMODELFACTORY_H__
++
++#include <string>
++#include "src/FaultModel.h"
++
++namespace NVM {
++
++class FaultModelFactory
++{
++  public:
++    static FaultModel *CreateFaultModel(std::string model);
++};
++
++};
++
++#endif 
+\ No newline at end of file
+diff --git a/FaultModels/NeuroHammer/NeuroHammer.cpp b/FaultModels/NeuroHammer/NeuroHammer.cpp
+new file mode 100644
+index 0000000..74ecbfb
+--- /dev/null
++++ b/FaultModels/NeuroHammer/NeuroHammer.cpp
+@@ -0,0 +1,344 @@
++#include "FaultModels/NeuroHammer/NeuroHammer.h"
++#include "include/NVMHelpers.h"
++#include <iostream>
++#include <cmath>
++#include <algorithm>
++
++#include "mem/request.hh"
++#include "mem/packet.hh"
++#include "Simulators/gem5/nvmain_mem.hh"
++using namespace NVM;
++using namespace gem5;
++using namespace gem5::memory;
++
++//for debug
++#include "debug/NeuroHammer.hh"
++#include "base/trace.hh"
++
++// Static instance pointer initialization
++NeuroHammer* NeuroHammer::instance = nullptr;
++
++// Singleton implementation
++NeuroHammer* NeuroHammer::GetInstance()
++{
++    if (instance == nullptr) {
++        instance = new NeuroHammer();
++        std::cout << "NeuroHammer: Singleton instance created" << std::endl;
++    }
++    return instance;
++}
++
++void NeuroHammer::DestroyInstance()
++{
++    if (instance != nullptr) {
++        delete instance;
++        instance = nullptr;
++        std::cout << "NeuroHammer: Singleton instance destroyed" << std::endl;
++    }
++}
++
++NeuroHammer::NeuroHammer()
++{
++    std::cout<<"NeuroHammer Constructor Called"<<std::endl;
++    
++    totalBitFlips = 0;
++    rowsAffected = 0;
++    totalHammerCount = 0;
++    
++    // Initialize random number generators
++    std::random_device rd;
++    rng = std::mt19937_64(rd());
++    paraRng = std::mt19937_64(rd());
++    
++    translator = NULL;
++    p = NULL;
++}
++
++NeuroHammer::~NeuroHammer()
++{
++    std::cout << "NeuroHammer Destructor Called" << std::endl;
++}
++
++void NeuroHammer::SetConfig(Config *config, bool createChildren)
++{
++    FaultModel::SetConfig(config, createChildren);
++    
++    Params *params = new Params();
++    params->SetParams(config);  
++    SetParams(params);
++
++    SetDebugName("NeuroHammer", config);
++    
++    // Print debug information for parameters
++    std::cout << "DEBUG: NeuroHammer SetConfig called, trying to fetch parameters:" << std::endl;
++    
++    // Check if parameters exist
++    std::cout << "  HC_first exists: " << config->KeyExists("HC_first") << std::endl;
++    std::cout << "  HC_last exists: " << config->KeyExists("HC_last") << std::endl;
++    std::cout << "  HC_last_bitflip_rate exists: " << config->KeyExists("HC_last_bitflip_rate") << std::endl;
++    std::cout << "  inc_dist_1 exists: " << config->KeyExists("inc_dist_1") << std::endl;
++    
++    // Try to get parameter values if they exist
++    if(config->KeyExists("HC_first")) {
++        std::cout << "  HC_first value: " << config->GetValueUL("HC_first") << std::endl;
++    }
++    if(config->KeyExists("HC_last")) {
++        std::cout << "  HC_last value: " << config->GetValueUL("HC_last") << std::endl;
++    }
++    if(config->KeyExists("HC_last_bitflip_rate")) {
++        std::cout << "  HC_last_bitflip_rate value: " << config->GetEnergy("HC_last_bitflip_rate") << std::endl;
++    }
++}
++
++void NeuroHammer::SetTranslator(AddressTranslator *trans)
++{
++    translator = trans;
++}
++
++double NeuroHammer::GenerateProbability(uint64_t addr)
++{
++    auto pp = probabilities.find(addr);
++    if (pp == probabilities.end()) {
++        std::mt19937_64 gen(addr);
++        std::uniform_real_distribution<double> dist(0.0, 1.0);
++        probabilities[addr] = dist(gen);
++        return probabilities[addr];
++    } else {
++        return pp->second;
++    }
++}
++
++bool NeuroHammer::InjectFault(NVMainRequest *request)
++{
++    if (translator == NULL)
++    {
++        std::cout << "NeuroHammer: FATAL - Address translator is not set!" << std::endl;
++        return false;
++    }
++
++    std::cout << "Inject Fault Called for request address: 0x" << std::hex 
++              << request->address.GetPhysicalAddress() << std::dec << std::endl;
++    // Extract address components from the request
++    uint64_t row, col, bank, rank, channel, subarray;
++    request->address.GetTranslatedAddress(&row, &col, &bank, &rank, &channel, &subarray);
++    
++    // Check if this is a read or write request
++    bool isRead = (request->type == READ || request->type == READ_PRECHARGE);
++    bool isWrite = (request->type == WRITE || request->type == WRITE_PRECHARGE);
++    
++    // Only process read/write requests
++    if (!isRead && !isWrite) {
++        return false;
++    }
++    
++    // Get row buffer hit status directly from the request
++    bool bufferHit = request->isRowBufferHit;
++    std::cout << "Buffer Hit: " << bufferHit << std::endl;
++    
++    // Get base address of this row
++    uint64_t baseRowAddr = GetPhysicalAddress(subarray,channel, rank, bank, row, 0);
++
++    // Calculate row size in bytes using official NVMain formula from MemoryController.cpp:
++    // memory word size (in bytes) = device width * minimum burst length * data rate / (8 bits/byte) * number of devices
++    // number of devices = bus width / device width
++    // Simplifies to: memory word size = BusWidth * tBURST * RATE / 8
++    uint64_t memoryWordSize = p->BusWidth * p->tBURST * p->RATE / 8;
++    uint64_t rowSizeBytes = p->COLS * memoryWordSize;
++
++    std::cout<<std::dec<<"Bus Width: "<<p->BusWidth<<"\n";
++    std::cout<<"tBURST: "<<p->tBURST<<"\n";
++    std::cout<<"RATE: "<<p->RATE<<"\n";
++    std::cout<<"Memory Word Size: "<<memoryWordSize<<"\n";
++    std::cout<<"COLS: "<<p->COLS<<"\n";
++    std::cout<<"Row Size in Bytes: "<<rowSizeBytes<<"\n";
++
++    // Process row hammer effects for reads
++    if (isRead) {
++        DPRINTF(NeuroHammer,"Processing row hammer effects for read\n");
++        hammerCount.erase(baseRowAddr);
++        
++        // Process row hammer effects
++        ProcessNeuroHammer(subarray,channel, rank, bank, row, bufferHit,request->addressFixUp,rowSizeBytes);
++    }
++    
++    // For writes, clear hammer count and flipped status
++    if (isWrite) {
++        DPRINTF(NeuroHammer,"Processing row hammer effects for write\n");
++        hammerCount.erase(baseRowAddr);
++        
++        // Clear flipped status for all quadwords in this row
++        for (uint64_t quadAddr = baseRowAddr; quadAddr <baseRowAddr +  rowSizeBytes; quadAddr+=sizeof(uint64_t)) {
++            flippedQuadwords.erase(quadAddr);
++        }
++    }
++    
++    return true;
++}
++
++void NeuroHammer::ProcessNeuroHammer(uint64_t subarray,uint64_t channel, uint64_t rank, uint64_t bank, uint64_t row, bool bufferHit,uint64_t addressFixUp,uint64_t rowSizeBytes)
++{
++    // No neurohammer effects when rowbuffer hit
++    if (bufferHit) {
++        DPRINTF(NeuroHammer,"Buffer hit, no neurohammer effects\n");
++        return;
++    }
++    
++    // Process neighboring rows within distance 5
++    for (int dist = -5; dist <= 5; dist++) {
++        if (dist == 0 || row + dist < 0 || row + dist >= p->ROWS) {
++            DPRINTF(NeuroHammer,"Row out of bounds, no neurohammer effects\n");
++            continue;
++        }
++        
++        // Determine increment based on distance
++        int add = 0;
++        switch (std::abs(dist)) {
++            case 5: add = p->inc_dist_5; break;
++            case 4: add = p->inc_dist_4; break;
++            case 3: add = p->inc_dist_3; break;
++            case 2: add = p->inc_dist_2; break;
++            case 1: add = p->inc_dist_1; break;
++        }
++        
++        if (add == 0) {
++            DPRINTF(NeuroHammer,"We don't increment for this distance i.e add = 0\n");
++            // We don't increment for this distance
++            continue;
++        }
++        
++        // Get base address of the victim row
++        uint64_t victimRowBase = GetPhysicalAddress(subarray,channel, rank, bank, row + dist, 0);
++        
++        // Initialize or increment hammer count
++        if (hammerCount.find(victimRowBase) == hammerCount.end()) {
++            hammerCount[victimRowBase] = add;
++            DPRINTF(NeuroHammer,"Row first time hit\n");
++            continue;
++        }
++
++        hammerCount[victimRowBase] += add;
++        
++        DPRINTF(NeuroHammer,"Hammer count for row %llu: %llu/%llu\n", victimRowBase,hammerCount[victimRowBase],p->HC_first);
++        // Check if we've reached the threshold for bit flips
++        if (hammerCount[victimRowBase] < p->HC_first) {
++            continue;
++        }
++        
++        // Calculate bit flip probability based on hammer count
++        double progress = std::min(
++            static_cast<double>(hammerCount[victimRowBase] - p->HC_first) / 
++            static_cast<double>(p->HC_last - p->HC_first), 
++            1.0
++        );
++        
++        double rowFlipRate = p->HC_last_bitflip_rate * progress * 64; // * bits in quadword
++        
++        DPRINTF(NeuroHammer,"Row flip rate: %f\n And hammer count: %llu\n", rowFlipRate,hammerCount[victimRowBase]);
++
++        // Check each quadword in the row for potential bit flips
++        for (uint64_t quadAddr=victimRowBase;quadAddr<victimRowBase+rowSizeBytes;quadAddr+=sizeof(uint64_t)) {
++            
++            // Skip if already flipped
++            if (flippedQuadwords.find(quadAddr) != flippedQuadwords.end()) {
++                continue;
++            }
++            
++            // Probabilistically flip quadword
++            if (GenerateProbability(quadAddr) > rowFlipRate) {
++                // No flip
++                continue;
++            }
++            
++            // Mark as flipped
++            flippedQuadwords.insert(quadAddr);
++            
++            DPRINTF(NeuroHammer,"Generating bit flip mask\n");
++            // Generate bit flip mask
++            uint64_t mask = 0;
++            if (p->flip_mask) {
++                mask = p->flip_mask;
++            } else {
++                // Generate random mask based on bit flip probabilities
++                std::mt19937_64 gen(quadAddr ^ 0xcafecafecafecafe);
++                std::uniform_real_distribution<double> dist(0.0, 1.0);
++                double flippedBitsRan = dist(gen);
++                
++                int flippedBits;
++                if (flippedBitsRan <= p->proba_1_bit_flipped) {
++                    flippedBits = 1;
++                } else if (flippedBitsRan <= p->proba_1_bit_flipped + p->proba_2_bit_flipped) {
++                    flippedBits = 2;
++                } else if (flippedBitsRan <= p->proba_1_bit_flipped + p->proba_2_bit_flipped + p->proba_3_bit_flipped) {
++                    flippedBits = 3;
++                } else {
++                    flippedBits = 4;
++                }
++                
++                // Generate random bit positions
++                std::uniform_int_distribution<int> posDist(0, 63);
++                for (int j = 0; j < flippedBits; j++) {
++                    int pos;
++                    // Find position that is not yet taken
++                    do {
++                        pos = posDist(gen);
++                    } while (mask & (((uint64_t)1) << pos));
++                    mask |= ((uint64_t)1) << pos;
++                }
++            }
++            DPRINTF(NeuroHammer,"Generated mask: 0x%x\n",mask);
++            //now apply this mask at quadAddr directly
++            // Convert NVMain address back to gem5 address using addressFixUp
++            uint64_t gem5Addr = quadAddr + addressFixUp;
++            uint64_t oldData = *(uint64_t*)NVMainMemory::masterInstance->toHostAddr(gem5Addr);
++           *(uint64_t*)NVMainMemory::masterInstance->toHostAddr(gem5Addr) ^= mask;
++
++            DPRINTF(NeuroHammer, "Flipped quadword at address 0x%x with mask 0x%x, Old Data: 0x%x, New Data: 0x%x, Hammer Count: %d\n", quadAddr, mask, oldData, *(uint64_t*)NVMainMemory::masterInstance->toHostAddr(gem5Addr),hammerCount[victimRowBase]);
++        }
++    }
++}
++
++uint64_t NeuroHammer::GetPhysicalAddress(uint64_t subarray,uint64_t channel, uint64_t rank, uint64_t bank, uint64_t row, uint64_t col)
++{
++    if (translator != NULL && translator->GetTranslationMethod() != NULL) {
++        // Use the NVMain address translator
++        uint64_t physAddr = translator->ReverseTranslate(row, col, bank, rank, channel, subarray);
++        
++        // For debugging
++        std::cout <<std::dec<< "GetPhysicalAddress using NVMain translator: " << std::endl;
++        std::cout << "  Channel: " << channel << ", Rank: " << rank << ", Bank: " << bank 
++                  << ", Row: " << row << ", Col: " << col << std::endl;
++        std::cout << "  Mapped to physical address: 0x" << std::hex << physAddr << std::dec << std::endl;
++        
++        return physAddr;
++    } else {
++        // Fallback to our simplified mapping if translator isn't available
++        std::cout << "WARNING: Using fallback address mapping (translator not available)" << std::endl;
++        
++        // Simple address mapping scheme
++        uint64_t colBits = 8;   // Typically 8-10 bits for column
++        uint64_t rowBits = 16;  // Typically 14-16 bits for row
++        uint64_t bankBits = 3;  // Typically 2-3 bits for bank
++        uint64_t rankBits = 2;  // Typically 1-2 bits for rank
++        uint64_t chBits = 1;    // Typically 1 bit for channel (renamed to avoid warning)
++        
++        uint64_t physAddr = 0;
++        physAddr |= col;
++        physAddr |= (row << colBits);
++        physAddr |= (bank << (colBits + rowBits));
++        physAddr |= (rank << (colBits + rowBits + bankBits));
++        physAddr |= (channel << (colBits + rowBits + bankBits + rankBits));
++        
++        std::cout <<std::dec<< "  Channel: " << channel << ", Rank: " << rank << ", Bank: " << bank 
++                  << ", Row: " << row << ", Col: " << col << std::endl;
++        std::cout << "  Fallback mapped to physical address: 0x" << std::hex << physAddr << std::dec << std::endl;
++        
++        return physAddr;
++    }
++}
++
++void NeuroHammer::RegisterStats()
++{
++    AddStat(totalBitFlips);
++    AddStat(rowsAffected);
++    AddStat(totalHammerCount);
++}
+\ No newline at end of file
+diff --git a/FaultModels/NeuroHammer/NeuroHammer.h b/FaultModels/NeuroHammer/NeuroHammer.h
+new file mode 100644
+index 0000000..0def2a8
+--- /dev/null
++++ b/FaultModels/NeuroHammer/NeuroHammer.h
+@@ -0,0 +1,69 @@
++#ifndef __NEUROHAMMER_H__
++#define __NEUROHAMMER_H__
++
++#include "src/FaultModel.h"
++#include "src/AddressTranslator.h"
++#include "Simulators/gem5/nvmain_mem.hh"
++#include <map>
++#include <set>
++#include <random>
++#include <unordered_map>
++
++namespace NVM {
++
++class NeuroHammer : public FaultModel
++{
++  public:
++    // Singleton pattern
++    static NeuroHammer* GetInstance();
++    static void DestroyInstance();
++    
++    void SetConfig(Config *config, bool createChildren = true);
++
++    void SetTranslator(AddressTranslator *trans);
++    
++    bool InjectFault(NVMainRequest *request);
++    
++    void RegisterStats();
++
++  private:
++    // Private constructor for singleton
++    NeuroHammer();
++    ~NeuroHammer();
++    
++    // Delete copy constructor and assignment operator
++    NeuroHammer(const NeuroHammer&) = delete;
++    NeuroHammer& operator=(const NeuroHammer&) = delete;
++    
++    // Static instance pointer
++    static NeuroHammer* instance;
++    
++    // Track hammer count for each row
++    std::map<uint64_t, uint64_t> hammerCount;
++    
++    // Track flipped quadwords to avoid re-flipping
++    std::set<uint64_t> flippedQuadwords;
++    
++    // Cache for random probabilities for a particular address
++    std::unordered_map<uint64_t, double> probabilities;
++    
++    // Random number generators
++    std::mt19937_64 rng;
++    std::mt19937_64 paraRng;
++    
++    // Statistics
++    ncounter_t totalBitFlips;
++    ncounter_t rowsAffected;
++    ncounter_t totalHammerCount;
++    
++    // Helper methods
++    double GenerateProbability(uint64_t addr);
++    void ProcessNeuroHammer(uint64_t subarray, uint64_t channel, uint64_t rank, uint64_t bank, uint64_t row, bool bufferHit,uint64_t addressFixUp,uint64_t rowSizeBytes);
++    uint64_t GetPhysicalAddress(uint64_t subarray, uint64_t channel, uint64_t rank, uint64_t bank, uint64_t row, uint64_t col);
++
++    AddressTranslator *translator;  // Address translator from NVMain
++};
++
++}
++
++#endif
+\ No newline at end of file
+diff --git a/FaultModels/NeuroHammer/SConscript b/FaultModels/NeuroHammer/SConscript
+new file mode 100644
+index 0000000..51451f1
+--- /dev/null
++++ b/FaultModels/NeuroHammer/SConscript
+@@ -0,0 +1,43 @@
++# Copyright (c) 2012-2013, The Microsystems Design Labratory (MDL)
++# Department of Computer Science and Engineering, The Pennsylvania State University
++# All rights reserved.
++# 
++# This source code is part of NVMain - A cycle accurate timing, bit accurate
++# energy simulator for both volatile (e.g., DRAM) and non-volatile memory
++# (e.g., PCRAM). The source code is free and you can redistribute and/or
++# modify it by providing that the following conditions are met:
++# 
++#  1) Redistributions of source code must retain the above copyright notice,
++#     this list of conditions and the following disclaimer.
++# 
++#  2) Redistributions in binary form must reproduce the above copyright notice,
++#     this list of conditions and the following disclaimer in the documentation
++#     and/or other materials provided with the distribution.
++# 
++# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
++# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
++# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
++# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
++# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
++# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
++# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
++# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++# 
++# Author list: 
++#   Matt Poremba    ( Email: mrp5060 at psu dot edu 
++#                     Website: http://www.cse.psu.edu/~poremba/ )
++
++Import('*')
++
++# Assume that this is a gem5 extras build if this is set.
++if 'TARGET_ISA' in env and env['TARGET_ISA'] == 'no':
++    Return()
++
++if 'NVMAIN_BUILD' in env:
++    NVMainSourceType('src', 'Backend Source')
++
++
++NVMainSource('NeuroHammer.cpp')
++DebugFlag('NeuroHammer')
+diff --git a/NVM/nvmain.cpp b/NVM/nvmain.cpp
+index 8b9754f..854a263 100644
+--- a/NVM/nvmain.cpp
++++ b/NVM/nvmain.cpp
+@@ -45,6 +45,7 @@
+ #include "include/NVMainRequest.h"
+ #include "include/NVMHelpers.h"
+ #include "Prefetchers/PrefetcherFactory.h"
++#include "FaultModels/NeuroHammer/NeuroHammer.h"
+ 
+ #include <sstream>
+ #include <cassert>
+@@ -70,6 +71,12 @@ NVMain::NVMain( )
+ 
+ NVMain::~NVMain( )
+ {
++
++    
++    // Clean up NeuroHammer singleton
++    NeuroHammer::DestroyInstance();
++
++
+     if( config ) 
+         delete config;
+     
+@@ -119,6 +126,33 @@ void NVMain::SetConfig( Config *conf, std::string memoryName, bool createChildre
+     params->SetParams( conf );
+     SetParams( params );
+ 
++    NeuroHammer* neuroHammer = nullptr;
++
++    // Initialize NeuroHammer singleton if FaultModel is specified
++    if (conf->KeyExists("FaultModel") && conf->GetString("FaultModel") == "NeuroHammer") {
++        std::cout << "NVMain: Initializing NeuroHammer fault model..." << std::endl;
++        neuroHammer = NeuroHammer::GetInstance();
++        neuroHammer->SetConfig(conf, createChildren);
++        std::cout << "NVMain: NeuroHammer fault model initialized successfully." << std::endl;
++    }
++
++    // // NEUROHAMMER PARAMETER VERIFICATION HERE:
++    // std::cout << "=== NeuroHammer Parameters Verification ===" << std::endl;
++    // std::cout << "HC_first: " << params->HC_first << std::endl;
++    // std::cout << "HC_last: " << params->HC_last << std::endl;
++    // std::cout << "HC_last_bitflip_rate: " << params->HC_last_bitflip_rate << std::endl;
++    // std::cout << "inc_dist_1: " << params->inc_dist_1 << std::endl;
++    // std::cout << "inc_dist_2: " << params->inc_dist_2 << std::endl;
++    // std::cout << "inc_dist_3: " << params->inc_dist_3 << std::endl;
++    // std::cout << "inc_dist_4: " << params->inc_dist_4 << std::endl;
++    // std::cout << "inc_dist_5: " << params->inc_dist_5 << std::endl;
++    // std::cout << "proba_1_bit_flipped: " << params->proba_1_bit_flipped << std::endl;
++    // std::cout << "proba_2_bit_flipped: " << params->proba_2_bit_flipped << std::endl;
++    // std::cout << "proba_3_bit_flipped: " << params->proba_3_bit_flipped << std::endl;
++    // std::cout << "proba_4_bit_flipped: " << params->proba_4_bit_flipped << std::endl;
++    // std::cout << "flip_mask: 0x" << std::hex << params->flip_mask << std::dec << std::endl;
++    // std::cout << "=============================================" << std::endl;
++
+     StatName( memoryName );
+ 
+     config = conf;
+@@ -165,6 +199,13 @@ void NVMain::SetConfig( Config *conf, std::string memoryName, bool createChildre
+         translator->SetTranslationMethod( method );
+         translator->SetDefaultField( CHANNEL_FIELD );
+ 
++        //just before assigning decoder to NVMObject, assign it to NeuroHammer
++        if (neuroHammer)
++        {
++            neuroHammer->SetTranslator(translator);
++            std::cout << "NVMain: Address translator has been set for NeuroHammer." << std::endl;
++        }
++
+         SetDecoder( translator );
+ 
+         memoryControllers = new MemoryController* [channels];
+diff --git a/Simulators/gem5/nvmain_mem.cc b/Simulators/gem5/nvmain_mem.cc
+index 489f45e..02f62f9 100644
+--- a/Simulators/gem5/nvmain_mem.cc
++++ b/Simulators/gem5/nvmain_mem.cc
+@@ -45,6 +45,7 @@
+ #include "Simulators/gem5/nvmain_mem.hh"
+ #include "SimInterface/Gem5Interface/Gem5Interface.h"
+ #include "Utils/HookFactory.h"
++#include "FaultModels/NeuroHammer/NeuroHammer.h"
+ 
+ #include "base/random.hh"
+ #include "base/statistics.hh"
+@@ -62,6 +63,7 @@ using namespace NVM;
+ using namespace gem5;
+ using namespace gem5::memory;
+ 
++#define IS_X86_ISA 1 //quick hack to choose X86 ISA
+ 
+ // This members are singleton values used to hold the main instance of
+ // NVMain and it's wake/sleep (i.e., timing/atomic) status. These are
+@@ -507,7 +509,6 @@ bool NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt) {
+  * https://developer.arm.com/documentation/den0001/latest
+  */
+ #ifdef IS_X86_ISA
+-    
+     if (masterInstance != &memory) {
+         addressFixUp = 0x40000000;
+     }
+@@ -521,6 +522,13 @@ bool NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt) {
+ 
+     request->access = UNKNOWN_ACCESS;
+     request->address.SetPhysicalAddress(pkt->req->getPaddr() - addressFixUp);
++
++    DPRINTF(NVMain,"nvmain_mem.cc: NVMain address is : 0x%x for gem5 address: 0x%x and fixup is 0x%x\n", request->address.GetPhysicalAddress(), pkt->req->getPaddr(), addressFixUp);
++    if(request->address.GetPhysicalAddress()!=pkt->req->getPaddr()){
++        DPRINTF(NVMain,"nvmain_mem.cc: NVMain address is : 0x%x for gem5 address: 0x%x and fixup is 0x%x WHICH ARE NOT EQUAL\n", request->address.GetPhysicalAddress(), pkt->req->getPaddr(), addressFixUp);    
++    }
++
++    request->addressFixUp = addressFixUp;
+     request->status = MEM_REQUEST_INCOMPLETE;
+     request->type = (pkt->isRead()) ? READ : WRITE;
+     request->owner = (NVMObject *)&memory;
+@@ -721,8 +729,28 @@ bool NVMainMemory::RequestComplete(NVM::NVMainRequest *req) {
+             }
+         }
+ 
+-        DPRINTF(NVMain, "Completed Mem request for 0x%x of type %s\n", req->address.GetPhysicalAddress( ), (isRead ? "READ" : "WRITE"));
++        DPRINTF(NVMain, "nvmain_mem.cc:Completed Mem request for 0x%x of type %s\n", req->address.GetPhysicalAddress( ), (isRead ? "READ" : "WRITE"));
++
++        std::cout << GetEventQueue()->GetCurrentCycle() << " nvmain_mem.cc: Command Completed "
++        << "Type: " << req->type;
++        
++        //not all packets have valid virtual address
++        if (memRequest->packet && memRequest->packet->req->hasVaddr()) {
++            std::cout << " for virtual address 0x" << std::hex << memRequest->packet->req->getVaddr()
++                     << " physical address 0x" << req->address.GetPhysicalAddress() << std::dec << std::endl;
++        } else {
++            std::cout << " for physical address 0x" << std::hex 
++                     << req->address.GetPhysicalAddress() << std::dec << std::endl;
++        }
+ 
++        // NeuroHammer fault injection after read/write
++        if (m_nvmainConfig->KeyExists("FaultModel") && m_nvmainConfig->GetString("FaultModel") == "NeuroHammer") {
++            NeuroHammer* neuroHammer = NeuroHammer::GetInstance();
++            if (neuroHammer != nullptr) {
++                neuroHammer->InjectFault(req);
++            }
++        }
++        
+         if (respond) {
+             ownerInstance->responseQueue.push_back(memRequest->packet);
+             ownerInstance->ScheduleResponse();
+diff --git a/Simulators/gem5/nvmain_mem.hh b/Simulators/gem5/nvmain_mem.hh
+index 139eca9..d5eaf4c 100644
+--- a/Simulators/gem5/nvmain_mem.hh
++++ b/Simulators/gem5/nvmain_mem.hh
+@@ -62,6 +62,12 @@
+ #include "src/NVMObject.h"
+ #include "src/SimInterface.h"
+ #include "src/TagGenerator.h"
++#include "FaultModels/NeuroHammer/NeuroHammer.h"
++
++namespace NVM {
++  class NeuroHammer;  // Forward declaration
++}
++
+ 
+ class NVMainMemory : public gem5::memory::AbstractMemory, public NVM::NVMObject
+ {
+@@ -201,7 +207,7 @@ class NVMainMemory : public gem5::memory::AbstractMemory, public NVM::NVMObject
+     std::map<NVM::NVMainRequest *, NVMainMemoryRequest *> m_request_map;
+ 
+   protected:
+-
++    friend class NVM::NeuroHammer;
+     gem5::Tick doAtomicAccess(gem5::PacketPtr pkt);
+     void doFunctionalAccess(gem5::PacketPtr pkt);
+     void recvRetry();
+diff --git a/include/NVMainRequest.h b/include/NVMainRequest.h
+index 2e84586..27cfc61 100644
+--- a/include/NVMainRequest.h
++++ b/include/NVMainRequest.h
+@@ -135,6 +135,8 @@ class NVMainRequest
+         writeProgress = 0;
+         cancellations = 0;
+         owner = NULL;
++        isRowBufferHit = false; //initialise this variable
++        addressFixUp = 0;
+     };
+ 
+     ~NVMainRequest( )
+@@ -158,6 +160,9 @@ class NVMainRequest
+     ncounter_t burstCount;         //< Number of bursts (used for variable-size requests.
+     NVMObject *owner;              //< Pointer to the object that created this request
+ 
++    bool isRowBufferHit;           //< Whether this request hit in the row buffer
++    uint64_t addressFixUp;         //< Address fix-up value for gem5 to NVMain address translation
++
+     ncycle_t arrivalCycle;         //< When the request arrived at the memory controller
+     ncycle_t queueCycle;           //< When the memory controller accepted (queued) the request
+     ncycle_t issueCycle;           //< When the memory controller issued the request to the interconnect (dequeued)
+diff --git a/src/MemoryController.cpp b/src/MemoryController.cpp
+index 8e86be7..2bd3f01 100644
+--- a/src/MemoryController.cpp
++++ b/src/MemoryController.cpp
+@@ -41,6 +41,7 @@
+ #include "src/Rank.h"
+ #include "src/SubArray.h"
+ #include "include/NVMHelpers.h"
++#include "FaultModels/NeuroHammer/NeuroHammer.h"
+ 
+ #include <sstream>
+ #include <cassert>
+@@ -1590,6 +1591,12 @@ bool MemoryController::IssueMemoryCommands( NVMainRequest *req )
+             && effectiveRow[rank][bank][subarray] == row 
+             && effectiveMuxedRow[rank][bank][subarray] == muxLevel )
+     {
++
++        //row buffer hit
++
++        req->isRowBufferHit = true;
++
++
+         starvationCounter[rank][bank][subarray]++;
+ 
+         req->issueCycle = GetEventQueue()->GetCurrentCycle();
+diff --git a/src/SConscript b/src/SConscript
+index ed9344a..6ab9053 100644
+--- a/src/SConscript
++++ b/src/SConscript
+@@ -56,4 +56,5 @@ NVMainSource('EventQueue.cpp')
+ NVMainSource('Stats.cpp')
+ NVMainSource('Debug.cpp')
+ NVMainSource('TagGenerator.cpp')
++NVMainSource('FaultModel.cpp')
+ 
+-- 
+2.43.0
+
