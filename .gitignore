@@ -38,3 +38,7 @@ gem5.terminal
 traceFiles/
 
 system/arm/bootloader/arm64/boot_foundation.arm64
+
+tutorial_scripts/
+gem5_resources/
+out.txt
