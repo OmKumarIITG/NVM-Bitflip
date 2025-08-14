@@ -56,6 +56,14 @@ enum PauseMode {
     PauseMode_Optimal   ///< Optimal: Same as IIWC, but consider iteration complete
 };
 
+/* custom data_types 
+-----------------------------------------------------
+typedef uint64_t  ncycle_t;     // For cycle counts
+typedef int64_t   ncycles_t;    // For signed cycle counts
+typedef uint64_t  ncounter_t;   // For general counters
+typedef int64_t   ncounters_t;  // For signed counters
+*/
+
 class Params
 {
   public:
@@ -208,6 +216,28 @@ class Params
     double PauseThreshold;
     ncounter_t MaxCancellations;
     PauseMode pauseMode;
+
+
+
+    /* NeuroHammer Attack Parameters */
+    double HC_first;              // Number of hammers for first bit flips
+    double HC_last;               // Number of hammers where no new flips occur
+    double HC_last_bitflip_rate;  // Probability of quadword flip at HC_last
+    
+    double inc_dist_1;            // Distance related hammer count increment
+    double inc_dist_2;
+    double inc_dist_3;
+    double inc_dist_4;
+    double inc_dist_5;
+    
+    double proba_1_bit_flipped;   // Probabilities for number of bits flipped in a quad word
+    double proba_2_bit_flipped;
+    double proba_3_bit_flipped;
+    double proba_4_bit_flipped;
+    
+    uint64_t flip_mask;           // Predefined static flip mask
+
+
 
   private:
     void ConvertTiming( Config *conf, std::string param, ncycle_t& value );
