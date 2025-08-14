@@ -84,5 +84,28 @@ struct Argument<X86PseudoInstABI, uint64_t>
     }
 };
 
+//added code
+template <>
+struct Argument<X86PseudoInstABI, int>
+{
+    static int
+    get(ThreadContext *tc, X86PseudoInstABI::State &state)
+    {
+        // The first 6 integer arguments are passed in registers, the rest
+        // are passed on the stack.
+
+        panic_if(state >= 6, "Too many psuedo inst arguments.");
+
+        using namespace X86ISA;
+
+        constexpr RegId int_reg_map[] = {
+            int_reg::Rdi, int_reg::Rsi, int_reg::Rdx,
+            int_reg::Rcx, int_reg::R8, int_reg::R9
+        };
+
+        // Get the 64-bit register value and cast it to a 32-bit int.
+        return (int32_t)tc->getReg(int_reg_map[state++]);
+    }
+};
 } // namespace guest_abi
 } // namespace gem5
