@@ -88,8 +88,20 @@ To fast-forward to the Region of Interest (ROI), we use KVMCPU.
 
 ### Prerequisites:
 
-* Virtualization must be enabled.
-* Create a `checkpoints` directory in the gem5 folder.
+* Make sure host system supports KVM mode. To this:
+  
+    (i) Enable Virtualisation in BIOS
+  
+    (ii) Load KVM modules:
+  
+  ```bash
+      sudo modprobe kvm
+      sudo modprobe kvm_intel   # or kvm_amd
+  ```
+
+    (iii) Follow offical gem5 guide for next steps : [Setting Up and Using KVM](https://www.gem5.org/documentation/general_docs/using_kvm/)
+  
+* Create a `checkpoints` directory in the gem5 directory.
 
 ### Command to take checkpoint:
 
