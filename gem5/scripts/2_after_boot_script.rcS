@@ -1,5 +1,5 @@
 mount /dev/hdb1 /mnt/wkld
 cd /mnt/wkld
-./hello-world
+./hello_world
 sleep 0.05
 m5 exit
