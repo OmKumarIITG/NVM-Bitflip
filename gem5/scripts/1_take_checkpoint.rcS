@@ -1,0 +1,50 @@
+#!/bin/sh
+
+echo "Inside 1_take_checkpoint.rcS script"
+sleep 2;
+
+# Test if the RUNSCRIPT_VAR environment variable is already set
+if [ "${RUNSCRIPT_VAR+set}" != set ]
+then
+	# Signal our future self that it's safe to continue
+	export RUNSCRIPT_VAR=1
+else
+	echo "[INFO] Already executed once, exiting..."
+	sleep 2;
+	/sbin/m5 exit
+fi
+
+# Checkpoint the first execution
+echo "Checkpointing simulation..."
+sleep 2;
+/sbin/m5 checkpoint
+sleep 0.05;
+
+# Test if we previously okayed ourselves to run this script
+if [ "$RUNSCRIPT_VAR" -eq 1 ]
+then
+	# Signal our future self not to recurse infinitely
+	export RUNSCRIPT_VAR=2
+
+	# Read the script for the checkpoint restored execution
+	echo "Loading new script..."
+	sleep 0.05;
+	/sbin/m5 readfile > /tmp/runscript
+	chmod 755 /tmp/runscript
+
+	# Execute the new runscript
+	if [ -s /tmp/runscript ]
+	then
+		echo "Executing new runscript..."
+		sleep 0.05;
+		exec /tmp/runscript
+	else
+		echo "Script not specified. Dropping into shell..."
+		sleep 0.05;
+		/bin/bash
+	fi
+fi
+
+echo "Fell through script. Exiting..."
+sleep 0.05;
+/sbin/m5 exit
