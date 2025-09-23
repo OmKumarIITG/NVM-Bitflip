@@ -15,6 +15,69 @@ We will prepare binary files to run in Full-System (FS) mode. Since FS mode is v
 1. **Create a workload disk image:**
 
    * A 2GB workload disk image with the Hello World binary is provided.
+   * If we want to create our own, follow this:
+          # QEMU Disk Setup Flow
+      
+      This guide outlines the complete flow for creating and preparing a 2GB disk image to be used in QEMU.
+      
+      ---
+      
+      ## Flow Overview
+      
+      1. **Create a 2GB Raw Disk Image**
+      
+      ```bash
+      qemu-img create -f raw workload.img 2G
+      ```
+      
+      2. **Format the Disk Image**
+      
+      ```bash
+      mkfs.ext4 workload.img
+      ```
+      
+      3. **Boot Using QEMU**
+      
+      Attach the disk to QEMU and boot the system:
+      
+      ```bash
+      qemu-system-x86_64 \
+          -m 2048 \
+          -kernel /home/hpca1/.cache/gem5/vmlinux-5.4.0-105-generic \
+          -append "root=/dev/sda1 rootfstype=ext4 rw console=ttyS0" \
+          -drive file=/home/hpca1/.cache/gem5/x86-ubuntu-18.04-img.img,format=raw,if=ide \
+          -drive file=/home/hpca1/BTP/NVM-Bitflip/gem5/gem5_resources/workload.img,format=raw,if=ide \
+          -nographic
+      ```
+      
+      4. **Check and Create Partition (if needed)**
+      
+      Inside the booted system, verify if the disk has a partition:
+      
+      ```bash
+      lsblk
+      ```
+      
+      If `/dev/sdb1` does not exist, create it:
+      
+      ```bash
+      sudo fdisk /dev/sdb
+      ```
+      
+      * Delete partial partitions if any (`d`).
+      * Create a new partition (`n → p → 1 → defaults`).
+      * Write changes (`w`).
+      
+      5. **Done**
+      
+      Verify the partition:
+      
+      ```bash
+      lsblk
+      ```
+      
+      The disk is now ready for use with `/dev/sdb1`.
+
 
 2. **Boot Ubuntu using QEMU:**
 
