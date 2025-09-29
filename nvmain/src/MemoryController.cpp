@@ -82,6 +82,8 @@ MemoryController::MemoryController( )
     nextRefreshBank = 0;
 
     handledRefresh = std::numeric_limits<ncycle_t>::max( );
+
+    buffer_hits = 0;
 }
 
 MemoryController::~MemoryController( )
@@ -561,6 +563,7 @@ void MemoryController::RegisterStats( )
 {
     AddStat(simulation_cycles);
     AddStat(wakeupCount);
+    AddStat(buffer_hits);
 }
 
 /* 
@@ -1334,6 +1337,9 @@ bool MemoryController::FindRowBufferHit( std::list<NVMainRequest *>& transaction
             *hitRequest = (*it);
             transactionQueue.erase( it );
 
+            (*hitRequest)->isRowBufferHit = true;
+            buffer_hits++;
+
             /* Different row buffer management policy has different behavior */ 
 
             /* 
@@ -1591,12 +1597,6 @@ bool MemoryController::IssueMemoryCommands( NVMainRequest *req )
             && effectiveRow[rank][bank][subarray] == row 
             && effectiveMuxedRow[rank][bank][subarray] == muxLevel )
     {
-
-        //row buffer hit
-
-        req->isRowBufferHit = true;
-
-
         starvationCounter[rank][bank][subarray]++;
 
         req->issueCycle = GetEventQueue()->GetCurrentCycle();

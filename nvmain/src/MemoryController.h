@@ -267,6 +267,7 @@ class MemoryController : public NVMObject
 
     /* Stats */
     ncounter_t simulation_cycles;
+    uint64_t buffer_hits; //track total buffer hits
 };
 
 };
