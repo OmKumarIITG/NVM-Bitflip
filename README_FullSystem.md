@@ -208,7 +208,7 @@ make
 Once compiled, connect to the simulation's terminal port. The default port is generally 3456:
 
 ```bash
-m5term <port>
+./m5term <port>
 ```
 
 Replace `<port>` with the actual port number printed in the gem5 simulation output.
