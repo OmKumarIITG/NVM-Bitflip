@@ -1,24 +1,28 @@
 #include "FaultModels/NeuroHammer/NeuroHammer.h"
 #include "include/NVMHelpers.h"
-#include <iostream>
-#include <cmath>
-#include <algorithm>
-
-#include "mem/request.hh"
 #include "mem/packet.hh"
+#include "mem/request.hh"
 #include "Simulators/gem5/nvmain_mem.hh"
+
+#include "base/trace.hh"
+#include "debug/NeuroHammer.hh"
+#include "debug/NeuroHammer_GetPhysicalAddress.hh"
+#include "debug/NeuroHammer_BitFlip.hh"
+
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+
 using namespace NVM;
 using namespace gem5;
 using namespace gem5::memory;
 
-//for debug
-#include "debug/NeuroHammer.hh"
-#include "base/trace.hh"
-
 // Static instance pointer initialization
 NeuroHammer* NeuroHammer::instance = nullptr;
 
-// Singleton implementation
+/**
+ * @brief Get the singleton instance of the NeuroHammer model.
+ */
 NeuroHammer* NeuroHammer::GetInstance()
 {
     if (instance == nullptr) {
@@ -28,6 +32,9 @@ NeuroHammer* NeuroHammer::GetInstance()
     return instance;
 }
 
+/**
+ * @brief Destroy the singleton instance.
+ */
 void NeuroHammer::DestroyInstance()
 {
     if (instance != nullptr) {
@@ -37,6 +44,9 @@ void NeuroHammer::DestroyInstance()
     }
 }
 
+/**
+ * @brief Constructor for NeuroHammer. Initializes state and RNGs.
+ */
 NeuroHammer::NeuroHammer()
 {
     std::cout<<"NeuroHammer Constructor Called"<<std::endl;
@@ -48,17 +58,21 @@ NeuroHammer::NeuroHammer()
     // Initialize random number generators
     std::random_device rd;
     rng = std::mt19937_64(rd());
-    paraRng = std::mt19937_64(rd());
     
     translator = NULL;
-    p = NULL;
 }
 
+/**
+ * @brief Destructor for NeuroHammer.
+ */
 NeuroHammer::~NeuroHammer()
 {
     std::cout << "NeuroHammer Destructor Called" << std::endl;
 }
 
+/**
+ * @brief Configures the NeuroHammer model from a config file.
+ */
 void NeuroHammer::SetConfig(Config *config, bool createChildren)
 {
     FaultModel::SetConfig(config, createChildren);
@@ -69,32 +83,54 @@ void NeuroHammer::SetConfig(Config *config, bool createChildren)
 
     SetDebugName("NeuroHammer", config);
     
-    // Print debug information for parameters
-    std::cout << "DEBUG: NeuroHammer SetConfig called, trying to fetch parameters:" << std::endl;
-    
-    // Check if parameters exist
-    std::cout << "  HC_first exists: " << config->KeyExists("HC_first") << std::endl;
-    std::cout << "  HC_last exists: " << config->KeyExists("HC_last") << std::endl;
-    std::cout << "  HC_last_bitflip_rate exists: " << config->KeyExists("HC_last_bitflip_rate") << std::endl;
-    std::cout << "  inc_dist_1 exists: " << config->KeyExists("inc_dist_1") << std::endl;
-    
-    // Try to get parameter values if they exist
-    if(config->KeyExists("HC_first")) {
-        std::cout << "  HC_first value: " << config->GetValueUL("HC_first") << std::endl;
+    // -------------------- DEBUG: Print NeuroHammer Parameters --------------------
+    DPRINTF(NeuroHammer, "DEBUG: NeuroHammer parameters from config:\n");
+
+    // Hammer count thresholds (common for read/write)
+    DPRINTF(NeuroHammer, "  hc_first: %f  // First bit flip expected\n", config->GetEnergy("hc_first"));
+    DPRINTF(NeuroHammer, "  hc_last: %f  // No new flips beyond this\n", config->GetEnergy("hc_last"));
+    DPRINTF(NeuroHammer, "  hc_last_bitflip_rate: %f  // Flip probability at HC_last\n", config->GetEnergy("hc_last_bitflip_rate"));
+
+    // -------------------- Read Distance-Dependent Increments --------------------
+    DPRINTF(NeuroHammer, "Read distance-dependent hammer count increments:\n");
+    for (int i = 1; i <= 5; i++) {
+        DPRINTF(NeuroHammer, "  inc_dist_%d_read: %f  // Increment factor for neighbor distance %d\n",i, config->GetEnergy("inc_dist_" + std::to_string(i) + "_read"), i);
     }
-    if(config->KeyExists("HC_last")) {
-        std::cout << "  HC_last value: " << config->GetValueUL("HC_last") << std::endl;
+
+    // -------------------- Write Distance-Dependent Increments --------------------
+    DPRINTF(NeuroHammer, "Write distance-dependent hammer count increments:\n");
+    for (int i = 1; i <= 5; i++) {
+        DPRINTF(NeuroHammer, "  inc_dist_%d_write: %f  // Increment factor for neighbor distance %d\n",i, config->GetEnergy("inc_dist_" + std::to_string(i) + "_write"), i);
     }
-    if(config->KeyExists("HC_last_bitflip_rate")) {
-        std::cout << "  HC_last_bitflip_rate value: " << config->GetEnergy("HC_last_bitflip_rate") << std::endl;
+
+    // Bit flip probabilities per quadword (common for read/write)
+    for (int i = 1; i <= 4; i++) {
+        DPRINTF(NeuroHammer, "  proba_%d_bit_flipped: %f  // Probability of %d bit(s) flipping\n",i, config->GetEnergy("proba_" + std::to_string(i) + "_bit_flipped"), i);
+    }
+
+    // Flip mask (common for read/write, only if exists)
+    if (config->KeyExists("flip_mask")) {
+        uint64_t flip_mask = config->GetValueUL("flip_mask");
+        DPRINTF(NeuroHammer, "  flip_mask: 0x%llx  // Static forced bit flip mask\n", flip_mask);
+    } else {
+        DPRINTF(NeuroHammer, "  flip_mask: does not exist\n");
     }
 }
 
+/**
+ * @brief Sets the address translator for the model.
+ */
 void NeuroHammer::SetTranslator(AddressTranslator *trans)
 {
     translator = trans;
 }
 
+/**
+ * @brief Generates a deterministic probability for a given address.
+ *
+ * Caches the result to ensure that the same address always yields the same
+ * probability, which is crucial for reproducible simulations.
+ */
 double NeuroHammer::GenerateProbability(uint64_t addr)
 {
     auto pp = probabilities.find(addr);
@@ -108,20 +144,18 @@ double NeuroHammer::GenerateProbability(uint64_t addr)
     }
 }
 
+/**
+ * @brief Entry point for fault injection, called on each memory request.
+ */
 bool NeuroHammer::InjectFault(NVMainRequest *request)
 {
-    if (translator == NULL)
-    {
-        std::cout << "NeuroHammer: FATAL - Address translator is not set!" << std::endl;
+    assert(translator != nullptr && "Address translator is not set!");
+
+     // Only inject faults for row activations (not row buffer hits).
+    if (request->isRowBufferHit) {
         return false;
     }
 
-    std::cout << "Inject Fault Called for request address: 0x" << std::hex 
-              << request->address.GetPhysicalAddress() << std::dec << std::endl;
-    // Extract address components from the request
-    uint64_t row, col, bank, rank, channel, subarray;
-    request->address.GetTranslatedAddress(&row, &col, &bank, &rank, &channel, &subarray);
-    
     // Check if this is a read or write request
     bool isRead = (request->type == READ || request->type == READ_PRECHARGE);
     bool isWrite = (request->type == WRITE || request->type == WRITE_PRECHARGE);
@@ -130,79 +164,78 @@ bool NeuroHammer::InjectFault(NVMainRequest *request)
     if (!isRead && !isWrite) {
         return false;
     }
-    
-    // Get row buffer hit status directly from the request
-    bool bufferHit = request->isRowBufferHit;
-    std::cout << "Buffer Hit: " << bufferHit << std::endl;
+
+    DPRINTF(NeuroHammer, "[InjectFault] Processing request for addr 0x%x\n",request->address.GetPhysicalAddress());
+
+    // Extract address components from the request
+    uint64_t row, col, bank, rank, channel, subarray;
+    request->address.GetTranslatedAddress(&row, &col, &bank, &rank, &channel, &subarray);
     
     // Get base address of this row
     uint64_t baseRowAddr = GetPhysicalAddress(subarray,channel, rank, bank, row, 0);
 
-    // Calculate row size in bytes using official NVMain formula from MemoryController.cpp:
-    // memory word size (in bytes) = device width * minimum burst length * data rate / (8 bits/byte) * number of devices
-    // number of devices = bus width / device width
-    // Simplifies to: memory word size = BusWidth * tBURST * RATE / 8
+    // Calculate the row size in bytes using NVMain's official formula (from MemoryController.cpp)
+    //
+    // Formula explanation:
+    //   memory word size (bytes) = device_width * tBURST * RATE * number_of_devices / 8
+    //
+    // Where:
+    //   - device_width: width of a single DRAM device in bits
+    //   - tBURST: minimum burst length
+    //   - RATE: data rate multiplier
+    //   - number_of_devices = bus_width / device_width
+    //
+    // Simplified form:
+    //   memory word size (bytes) = BusWidth * tBURST * RATE / 8
+    //
+    // This gives the total size of a row in bytes.
+
     uint64_t memoryWordSize = p->BusWidth * p->tBURST * p->RATE / 8;
     uint64_t rowSizeBytes = p->COLS * memoryWordSize;
 
-    std::cout<<std::dec<<"Bus Width: "<<p->BusWidth<<"\n";
-    std::cout<<"tBURST: "<<p->tBURST<<"\n";
-    std::cout<<"RATE: "<<p->RATE<<"\n";
-    std::cout<<"Memory Word Size: "<<memoryWordSize<<"\n";
-    std::cout<<"COLS: "<<p->COLS<<"\n";
-    std::cout<<"Row Size in Bytes: "<<rowSizeBytes<<"\n";
+    // Reset the hammer count for this row
+    hammerCount.erase(baseRowAddr);
+    // Clear flipped status for all quadwords in this row
+    for (uint64_t quadAddr = baseRowAddr; quadAddr <baseRowAddr +  rowSizeBytes; quadAddr+=sizeof(uint64_t)) {
+        flippedQuadwords.erase(quadAddr);
+    }
 
-    // Process row hammer effects for reads
-    if (isRead) {
-        DPRINTF(NeuroHammer,"Processing row hammer effects for read\n");
-        hammerCount.erase(baseRowAddr);
-        
-        // Process row hammer effects
-        ProcessNeuroHammer(subarray,channel, rank, bank, row, bufferHit,request->addressFixUp,rowSizeBytes);
-    }
-    
-    // For writes, clear hammer count and flipped status
-    if (isWrite) {
-        DPRINTF(NeuroHammer,"Processing row hammer effects for write\n");
-        hammerCount.erase(baseRowAddr);
-        
-        // Clear flipped status for all quadwords in this row
-        for (uint64_t quadAddr = baseRowAddr; quadAddr <baseRowAddr +  rowSizeBytes; quadAddr+=sizeof(uint64_t)) {
-            flippedQuadwords.erase(quadAddr);
-        }
-    }
-    
+    bool isReadHammering = false;
+    if(isRead) isReadHammering = true;
+    ProcessNeuroHammer(subarray,channel, rank, bank, row,request->addressFixUp,rowSizeBytes,isReadHammering);
+
     return true;
 }
 
-void NeuroHammer::ProcessNeuroHammer(uint64_t subarray,uint64_t channel, uint64_t rank, uint64_t bank, uint64_t row, bool bufferHit,uint64_t addressFixUp,uint64_t rowSizeBytes)
+void NeuroHammer::ProcessNeuroHammer(uint64_t subarray,uint64_t channel, uint64_t rank, uint64_t bank, uint64_t row,uint64_t addressFixUp,uint64_t rowSizeBytes, bool isReadHammering)
 {
-    // No neurohammer effects when rowbuffer hit
-    if (bufferHit) {
-        DPRINTF(NeuroHammer,"Buffer hit, no neurohammer effects\n");
-        return;
-    }
-    
+
     // Process neighboring rows within distance 5
     for (int dist = -5; dist <= 5; dist++) {
-        if (dist == 0 || row + dist < 0 || row + dist >= p->ROWS) {
+        if (dist == 0 || static_cast<int64_t>(row) + dist < 0 || static_cast<int64_t>(row) + dist >= static_cast<int64_t>(p->ROWS)) {
             DPRINTF(NeuroHammer,"Row out of bounds, no neurohammer effects\n");
             continue;
         }
         
-        // Determine increment based on distance
-        int add = 0;
-        switch (std::abs(dist)) {
-            case 5: add = p->inc_dist_5; break;
-            case 4: add = p->inc_dist_4; break;
-            case 3: add = p->inc_dist_3; break;
-            case 2: add = p->inc_dist_2; break;
-            case 1: add = p->inc_dist_1; break;
+        // Determine hammer increment value
+        double hammerIncrement = 0.0;
+        int abs_dist = std::abs(dist);
+        if (isReadHammering) {
+            if (abs_dist == 1) hammerIncrement = p->inc_dist_1_read;
+            else if (abs_dist == 2) hammerIncrement = p->inc_dist_2_read;
+            else if (abs_dist == 3) hammerIncrement = p->inc_dist_3_read;
+            else if (abs_dist == 4) hammerIncrement = p->inc_dist_4_read;
+            else if (abs_dist == 5) hammerIncrement = p->inc_dist_5_read;
+        } else { // isWrite
+            if (abs_dist == 1) hammerIncrement = p->inc_dist_1_write;
+            else if (abs_dist == 2) hammerIncrement = p->inc_dist_2_write;
+            else if (abs_dist == 3) hammerIncrement = p->inc_dist_3_write;
+            else if (abs_dist == 4) hammerIncrement = p->inc_dist_4_write;
+            else if (abs_dist == 5) hammerIncrement = p->inc_dist_5_write;
         }
         
-        if (add == 0) {
-            DPRINTF(NeuroHammer,"We don't increment for this distance i.e add = 0\n");
-            // We don't increment for this distance
+        if (hammerIncrement == 0.0) {
+            // We do not increment for this distance
             continue;
         }
         
@@ -211,14 +244,13 @@ void NeuroHammer::ProcessNeuroHammer(uint64_t subarray,uint64_t channel, uint64_
         
         // Initialize or increment hammer count
         if (hammerCount.find(victimRowBase) == hammerCount.end()) {
-            hammerCount[victimRowBase] = add;
-            DPRINTF(NeuroHammer,"Row first time hit\n");
+            hammerCount[victimRowBase] = hammerIncrement;
+            DPRINTF(NeuroHammer,"Row accessed for the first time\n");
             continue;
         }
+        hammerCount[victimRowBase] += hammerIncrement;
+        DPRINTF(NeuroHammer,"Hammer count for row %llu: %f/%f\n", victimRowBase,hammerCount[victimRowBase],p->HC_first);
 
-        hammerCount[victimRowBase] += add;
-        
-        DPRINTF(NeuroHammer,"Hammer count for row %llu: %llu/%llu\n", victimRowBase,hammerCount[victimRowBase],p->HC_first);
         // Check if we've reached the threshold for bit flips
         if (hammerCount[victimRowBase] < p->HC_first) {
             continue;
@@ -233,9 +265,9 @@ void NeuroHammer::ProcessNeuroHammer(uint64_t subarray,uint64_t channel, uint64_
         
         double rowFlipRate = p->HC_last_bitflip_rate * progress * 64; // * bits in quadword
         
-        DPRINTF(NeuroHammer,"Row flip rate: %f\n And hammer count: %llu\n", rowFlipRate,hammerCount[victimRowBase]);
+        DPRINTF(NeuroHammer,"Row flip rate: %f And hammer count: %llu\n", rowFlipRate,hammerCount[victimRowBase]);
 
-        // Check each quadword in the row for potential bit flips
+        // Iterate over quadwords in the victim row
         for (uint64_t quadAddr=victimRowBase;quadAddr<victimRowBase+rowSizeBytes;quadAddr+=sizeof(uint64_t)) {
             
             // Skip if already flipped
@@ -285,41 +317,47 @@ void NeuroHammer::ProcessNeuroHammer(uint64_t subarray,uint64_t channel, uint64_
                     mask |= ((uint64_t)1) << pos;
                 }
             }
-            DPRINTF(NeuroHammer,"Generated mask: 0x%x\n",mask);
-            //now apply this mask at quadAddr directly
-            // Convert NVMain address back to gem5 address using addressFixUp
-            uint64_t gem5Addr = quadAddr + addressFixUp;
-            uint64_t oldData = *(uint64_t*)NVMainMemory::masterInstance->toHostAddr(gem5Addr);
-           *(uint64_t*)NVMainMemory::masterInstance->toHostAddr(gem5Addr) ^= mask;
 
-            DPRINTF(NeuroHammer, "Flipped quadword at address 0x%x with mask 0x%x, Old Data: 0x%x, New Data: 0x%x, Hammer Count: %d\n", quadAddr, mask, oldData, *(uint64_t*)NVMainMemory::masterInstance->toHostAddr(gem5Addr),hammerCount[victimRowBase]);
+            // Apply the flip to the simulated memory.
+            uint64_t gem5Addr = quadAddr + addressFixUp;
+            uint64_t* hostAddr = (uint64_t*)NVMainMemory::masterInstance->toHostAddr(gem5Addr);
+            uint64_t oldData = *hostAddr;
+            *hostAddr ^= mask; // Apply XOR mask to flip bits.
+            totalBitFlips += __builtin_popcountll(mask);
+
+            DPRINTF(NeuroHammer_BitFlip,"BIT FLIP! Addr: 0x%x, Mask: 0x%x, Old Data: 0x%x, New Data: 0x%x\n",quadAddr, mask, oldData, *hostAddr);
         }
     }
 }
 
+/**
+ * @brief Converts a translated address back to a physical address.
+ *
+ * Uses the NVMain translator if available, otherwise falls back to a simple
+ * default mapping scheme.
+ */
 uint64_t NeuroHammer::GetPhysicalAddress(uint64_t subarray,uint64_t channel, uint64_t rank, uint64_t bank, uint64_t row, uint64_t col)
 {
     if (translator != NULL && translator->GetTranslationMethod() != NULL) {
         // Use the NVMain address translator
         uint64_t physAddr = translator->ReverseTranslate(row, col, bank, rank, channel, subarray);
         
-        // For debugging
-        std::cout <<std::dec<< "GetPhysicalAddress using NVMain translator: " << std::endl;
-        std::cout << "  Channel: " << channel << ", Rank: " << rank << ", Bank: " << bank 
-                  << ", Row: " << row << ", Col: " << col << std::endl;
-        std::cout << "  Mapped to physical address: 0x" << std::hex << physAddr << std::dec << std::endl;
+        // For debugging: print mapping from NVMain translation
+        DPRINTF(NeuroHammer_GetPhysicalAddress, "GetPhysicalAddress using NVMain translator:\n");
+        DPRINTF(NeuroHammer_GetPhysicalAddress, "  Channel: %d, Rank: %d, Bank: %d, Row: %d, Col: %d\n",channel, rank, bank, row, col);
+        DPRINTF(NeuroHammer_GetPhysicalAddress, "  Mapped to physical address: 0x%llx\n", physAddr);
         
         return physAddr;
     } else {
         // Fallback to our simplified mapping if translator isn't available
-        std::cout << "WARNING: Using fallback address mapping (translator not available)" << std::endl;
-        
+        DPRINTF(NeuroHammer_GetPhysicalAddress, "WARNING: Using fallback address mapping (translator not available)\n");
+     
         // Simple address mapping scheme
-        uint64_t colBits = 8;   // Typically 8-10 bits for column
-        uint64_t rowBits = 16;  // Typically 14-16 bits for row
-        uint64_t bankBits = 3;  // Typically 2-3 bits for bank
-        uint64_t rankBits = 2;  // Typically 1-2 bits for rank
-        uint64_t chBits = 1;    // Typically 1 bit for channel (renamed to avoid warning)
+        uint64_t colBits = 9;   // Typically 8-10 bits for column
+        uint64_t rowBits = 13;  // Typically 14-16 bits for row
+        uint64_t bankBits = 2;  // Typically 2-3 bits for bank
+        uint64_t rankBits = 0;  // Typically 0-1 bits for rank
+        uint64_t chBits = 2;    // Typically 1-2 bit for channel
         
         uint64_t physAddr = 0;
         physAddr |= col;
@@ -328,14 +366,16 @@ uint64_t NeuroHammer::GetPhysicalAddress(uint64_t subarray,uint64_t channel, uin
         physAddr |= (rank << (colBits + rowBits + bankBits));
         physAddr |= (channel << (colBits + rowBits + bankBits + rankBits));
         
-        std::cout <<std::dec<< "  Channel: " << channel << ", Rank: " << rank << ", Bank: " << bank 
-                  << ", Row: " << row << ", Col: " << col << std::endl;
-        std::cout << "  Fallback mapped to physical address: 0x" << std::hex << physAddr << std::dec << std::endl;
-        
+        DPRINTF(NeuroHammer_GetPhysicalAddress,"  Channel: %d, Rank: %d, Bank: %d, Row: %d, Col: %d\n",channel, rank, bank, row, col);
+        DPRINTF(NeuroHammer_GetPhysicalAddress,"  Fallback mapped to physical address: 0x%llx\n", physAddr);
+
         return physAddr;
     }
 }
 
+/**
+ * @brief Registers statistics to be tracked by NVMain.
+ */
 void NeuroHammer::RegisterStats()
 {
     AddStat(totalBitFlips);

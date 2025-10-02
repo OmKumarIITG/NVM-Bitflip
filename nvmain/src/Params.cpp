@@ -203,22 +203,37 @@ Params::Params( )
     debugOn = false;
     debugClasses.clear();
 
-    /* Initialize NeuroHammer parameters with defaults */
-    HC_first = 50000.0;
-    HC_last = 150000.0;
+    /* ---------------- Initialize NeuroHammer Parameters (Defaults) ---------------- */
+    
+    // Hammer count thresholds
+    HC_first = 50000.0;            
+    HC_last  = 150000.0;           
     HC_last_bitflip_rate = 0.005;
 
-    inc_dist_1 = 1.0;
-    inc_dist_2 = 0.0;
-    inc_dist_3 = 0.0;
-    inc_dist_4 = 0.0;
-    inc_dist_5 = 0.0;
+    // Distance-dependent hammer count increments (READ aggressors)
+    inc_dist_1_read = 1.0;         // Immediate neighbors affected by reads
+    inc_dist_2_read = 0.0;
+    inc_dist_3_read = 0.0;
+    inc_dist_4_read = 0.0;
+    inc_dist_5_read = 0.0;
 
-    proba_1_bit_flipped = 1.0;
+    // Distance-dependent hammer count increments (WRITE aggressors)
+    // (Writes generally induce stronger disturbance, so defaults can be tuned higher if needed)
+    inc_dist_1_write = 1.0;        
+    inc_dist_2_write = 0.0;
+    inc_dist_3_write = 0.0;
+    inc_dist_4_write = 0.0;
+    inc_dist_5_write = 0.0;
+
+    // Bit flip probability distribution per quadword
+    proba_1_bit_flipped = 1.0;     // By default, assuming only single-bit flips occur
     proba_2_bit_flipped = 0.0;
     proba_3_bit_flipped = 0.0;
     proba_4_bit_flipped = 0.0;
-    flip_mask = 0;  
+
+    // Flip mask (0 = no forced static flips, bits set = forced flips at those positions)
+    flip_mask = 0;
+
 }
 
 Params::~Params( )
@@ -453,21 +468,31 @@ void Params::SetParams( Config *c )
 
     if(c->KeyExists("HC_last_bitflip_rate"))
         HC_last_bitflip_rate = static_cast<double>(atof(c->GetString("HC_last_bitflip_rate").c_str()));    
-    // Distance related hammer count increment
-    if(c->KeyExists("inc_dist_1"))
-        inc_dist_1 = static_cast<double>(atof(c->GetString("inc_dist_1").c_str()));
 
-    if(c->KeyExists("inc_dist_2"))
-        inc_dist_2 = static_cast<double>(atof(c->GetString("inc_dist_2").c_str()));
+    // READ aggressor increments
+    if (c->KeyExists("inc_dist_1_read"))
+        inc_dist_1_read = atof(c->GetString("inc_dist_1_read").c_str());  // Immediate neighbor
+    if (c->KeyExists("inc_dist_2_read"))
+        inc_dist_2_read = atof(c->GetString("inc_dist_2_read").c_str());
+    if (c->KeyExists("inc_dist_3_read"))
+        inc_dist_3_read = atof(c->GetString("inc_dist_3_read").c_str());
+    if (c->KeyExists("inc_dist_4_read"))
+        inc_dist_4_read = atof(c->GetString("inc_dist_4_read").c_str());
+    if (c->KeyExists("inc_dist_5_read"))
+        inc_dist_5_read = atof(c->GetString("inc_dist_5_read").c_str());
 
-    if(c->KeyExists("inc_dist_3"))
-        inc_dist_3 = static_cast<double>(atof(c->GetString("inc_dist_3").c_str()));
+    // WRITE aggressor increments
+    if (c->KeyExists("inc_dist_1_write"))
+        inc_dist_1_write = atof(c->GetString("inc_dist_1_write").c_str());  // Immediate neighbor
+    if (c->KeyExists("inc_dist_2_write"))
+        inc_dist_2_write = atof(c->GetString("inc_dist_2_write").c_str());
+    if (c->KeyExists("inc_dist_3_write"))
+        inc_dist_3_write = atof(c->GetString("inc_dist_3_write").c_str());
+    if (c->KeyExists("inc_dist_4_write"))
+        inc_dist_4_write = atof(c->GetString("inc_dist_4_write").c_str());
+    if (c->KeyExists("inc_dist_5_write"))
+        inc_dist_5_write = atof(c->GetString("inc_dist_5_write").c_str()); 
 
-    if(c->KeyExists("inc_dist_4"))
-        inc_dist_4 = static_cast<double>(atof(c->GetString("inc_dist_4").c_str()));
-
-    if(c->KeyExists("inc_dist_5"))
-        inc_dist_5 = static_cast<double>(atof(c->GetString("inc_dist_5").c_str()));    
     // Bit flip probabilities
     if(c->KeyExists("proba_1_bit_flipped"))
         proba_1_bit_flipped = static_cast<double>(atof(c->GetString("proba_1_bit_flipped").c_str()));

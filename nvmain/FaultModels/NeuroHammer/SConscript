@@ -41,3 +41,5 @@ if 'NVMAIN_BUILD' in env:
 
 NVMainSource('NeuroHammer.cpp')
 DebugFlag('NeuroHammer')
+DebugFlag('NeuroHammer_GetPhysicalAddress')
+DebugFlag('NeuroHammer_BitFlip')
