@@ -3,8 +3,31 @@
 NVM-Bitflip explores bit-flip behavior in a modified NVMain memory model. As part of this work, we demonstrate how to run a simple Hello World program in gem5 under Full-System (FS) mode. This guide walks through creating workload files, taking a checkpoint with KVMCPU, and resuming execution of the binary workload from that checkpoint.
 
 ---
+## 1. Install Dependencies and Build gem5 with NVMain
 
-## 1. Create Workload Files
+Before creating workloads, we must compile **gem5** with **NVMain** as an external module.  
+
+### Steps:
+
+1. **Install Dependencies**
+   ```bash
+    sudo apt install build-essential git m4 scons zlib1g zlib1g-dev \
+    libprotobuf-dev protobuf-compiler libprotoc-dev \
+    libgoogle-perftools-dev python3-dev python3-six \
+    libboost-all-dev pkg-config
+   ```
+2. **Clone the Repository**
+   ```bash
+     git clone https://github.com/OmKumarIITG/NVM-Bitflip.git
+     cd NVM-Bitflip/gem5
+   ```
+3. **Build gem5 with NVMain**
+   ```bash
+     scons build/X86/gem5.opt EXTRAS=../nvmain -j $(nproc)
+   ```
+> **Note:** `-j $(nproc)` flag builds gem5 using all available CPU cores for faster compilation. Once the build completes successfully, gem5 will be ready to simulate memory systems with NVMain integration.
+
+## 2. Create Workload Files
 
 We will prepare binary files to run in Full-System (FS) mode. Since FS mode is very slow, we use precompiled binaries to save time.
 
@@ -143,7 +166,7 @@ shutdown now
 
 ---
 
-## 2. Create a Checkpoint using KVMCPU
+## 3. Create a Checkpoint using KVMCPU
 
 To fast-forward to the Region of Interest (ROI), we use KVMCPU.
 
@@ -238,7 +261,7 @@ chmod +x gem5/util/term/m5term
 
 ---
 
-## 3. Run the Binary Workload Using the Checkpoint
+## 4. Run the Binary Workload Using the Checkpoint
 
 We restore from the checkpoint using `TimingSimpleCPU`.
 
@@ -270,6 +293,6 @@ build/X86/gem5.opt configs/deprecated/example/fs.py \
 
 > **Important:**
 >
-> * Follow all three steps in order. Modifying or creating binaries after checkpoint creation will not reflect during execution because gem5 snapshots disk images and memory at checkpoint time.
-> * The `--checkpoint-restore` index corresponds to the checkpoint number in the `checkpoints` directory, sorted by tick.
-> * Ensure `nvmain-config` and all script paths are correct.
+> 1. Follow all three steps in order. Modifying or creating binaries after checkpoint creation will not reflect during execution because gem5 snapshots disk images and memory at checkpoint time.
+> 2. The `--checkpoint-restore` index corresponds to the checkpoint number in the `checkpoints` directory, sorted by tick.
+> 3. Ensure `nvmain-config` and all script paths are correct.
