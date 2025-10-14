@@ -35,7 +35,7 @@ using namespace std;
 #define ROW_SIZE (8192)
 
 // Number of hammers to perform per iteration
-#define HAMMERS_PER_ITER 5000
+#define HAMMERS_PER_ITER 50000
 
 // Physical Page Number to Virtual Page Number Map
 std::map<uint64_t, uint64_t> PPN_VPN_map;
