@@ -287,14 +287,19 @@ void NeuroHammer::ProcessNeuroHammer(uint64_t subarray,uint64_t channel, uint64_
             DPRINTF(NeuroHammer,"Generating bit flip mask\n");
             // Generate bit flip mask
             uint64_t mask = 0;
+            uint64_t gem5Addr = quadAddr + addressFixUp;
+            uint64_t* hostAddr = (uint64_t*)NVMainMemory::masterInstance->toHostAddr(gem5Addr);
+            uint64_t oldData = *hostAddr;
+
             if (p->flip_mask) {
-                mask = p->flip_mask;
+                // Optional: apply external mask, but enforce 0->1 only
+                mask = p->flip_mask & ~oldData; // Mask out any bits already 1
             } else {
                 // Generate random mask based on bit flip probabilities
                 std::mt19937_64 gen(quadAddr ^ 0xcafecafecafecafe);
                 std::uniform_real_distribution<double> dist(0.0, 1.0);
                 double flippedBitsRan = dist(gen);
-                
+
                 int flippedBits;
                 if (flippedBitsRan <= p->proba_1_bit_flipped) {
                     flippedBits = 1;
@@ -305,27 +310,37 @@ void NeuroHammer::ProcessNeuroHammer(uint64_t subarray,uint64_t channel, uint64_
                 } else {
                     flippedBits = 4;
                 }
-                
-                // Generate random bit positions
-                std::uniform_int_distribution<int> posDist(0, 63);
-                for (int j = 0; j < flippedBits; j++) {
-                    int pos;
-                    // Find position that is not yet taken
-                    do {
-                        pos = posDist(gen);
-                    } while (mask & (((uint64_t)1) << pos));
-                    mask |= ((uint64_t)1) << pos;
+
+                // Find all 0-bit positions in oldData
+                std::vector<int> zeroBits;
+                for (int b = 0; b < 64; ++b) {
+                    if (((oldData >> b) & 1) == 0) {
+                        zeroBits.push_back(b);
+                    }
+                }
+
+                // If no zero bits are available, skip
+                if (zeroBits.empty()) {
+                    DPRINTF(NeuroHammer_BitFlip, "No 0-bits to flip at Addr: 0x%x\n", quadAddr);
+                    return;
+                }
+
+                // Shuffle zero-bit positions and pick up to flippedBits
+                std::shuffle(zeroBits.begin(), zeroBits.end(), gen);
+                int numToFlip = std::min(flippedBits, (int)zeroBits.size());
+                for (int i = 0; i < numToFlip; ++i) {
+                    mask |= ((uint64_t)1 << zeroBits[i]);
                 }
             }
 
-            // Apply the flip to the simulated memory.
-            uint64_t gem5Addr = quadAddr + addressFixUp;
-            uint64_t* hostAddr = (uint64_t*)NVMainMemory::masterInstance->toHostAddr(gem5Addr);
-            uint64_t oldData = *hostAddr;
-            *hostAddr ^= mask; // Apply XOR mask to flip bits.
+            // Apply the XOR mask to simulate bitflips (0 -> 1 only)
+            *hostAddr ^= mask;
             totalBitFlips += __builtin_popcountll(mask);
 
-            DPRINTF(NeuroHammer_BitFlip,"BIT FLIP! Addr: 0x%x, Mask: 0x%x, Old Data: 0x%x, New Data: 0x%x\n",quadAddr, mask, oldData, *hostAddr);
+            DPRINTF(NeuroHammer_BitFlip,
+                    "BIT FLIP! Addr: 0x%x, Mask: 0x%x, Old Data: 0x%x, New Data: 0x%x\n",
+                    quadAddr, mask, oldData, *hostAddr);
+
         }
     }
 }
