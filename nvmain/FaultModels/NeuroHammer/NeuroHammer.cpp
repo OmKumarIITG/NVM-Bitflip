@@ -2,6 +2,7 @@
 #include "include/NVMHelpers.h"
 #include "mem/packet.hh"
 #include "mem/request.hh"
+#include "sim/core.hh"
 #include "Simulators/gem5/nvmain_mem.hh"
 
 #include "base/trace.hh"
@@ -52,8 +53,6 @@ NeuroHammer::NeuroHammer()
     std::cout<<"NeuroHammer Constructor Called"<<std::endl;
     
     totalBitFlips = 0;
-    rowsAffected = 0;
-    totalHammerCount = 0;
     
     // Initialize random number generators
     std::random_device rd;
@@ -91,17 +90,8 @@ void NeuroHammer::SetConfig(Config *config, bool createChildren)
     DPRINTF(NeuroHammer, "  hc_last: %f  // No new flips beyond this\n", config->GetEnergy("hc_last"));
     DPRINTF(NeuroHammer, "  hc_last_bitflip_rate: %f  // Flip probability at HC_last\n", config->GetEnergy("hc_last_bitflip_rate"));
 
-    // -------------------- Read Distance-Dependent Increments --------------------
-    DPRINTF(NeuroHammer, "Read distance-dependent hammer count increments:\n");
-    for (int i = 1; i <= 5; i++) {
-        DPRINTF(NeuroHammer, "  inc_dist_%d_read: %f  // Increment factor for neighbor distance %d\n",i, config->GetEnergy("inc_dist_" + std::to_string(i) + "_read"), i);
-    }
-
-    // -------------------- Write Distance-Dependent Increments --------------------
-    DPRINTF(NeuroHammer, "Write distance-dependent hammer count increments:\n");
-    for (int i = 1; i <= 5; i++) {
-        DPRINTF(NeuroHammer, "  inc_dist_%d_write: %f  // Increment factor for neighbor distance %d\n",i, config->GetEnergy("inc_dist_" + std::to_string(i) + "_write"), i);
-    }
+    // -------------------- Write Distance-Dependent Increment --------------------
+    DPRINTF(NeuroHammer, "  inc_write: %f  // Increment factor for write aggressors\n", config->GetEnergy("inc_write"));
 
     // Bit flip probabilities per quadword (common for read/write)
     for (int i = 1; i <= 4; i++) {
@@ -115,6 +105,9 @@ void NeuroHammer::SetConfig(Config *config, bool createChildren)
     } else {
         DPRINTF(NeuroHammer, "  flip_mask: does not exist\n");
     }
+
+    // -------------------- Hammer count decay time constant --------------------
+    DPRINTF(NeuroHammer, "  hammer_count_decay_constant: %f  // Hammer count decay time constant\n", config->GetEnergy("hammer_count_decay_constant"));
 }
 
 /**
@@ -145,39 +138,46 @@ double NeuroHammer::GenerateProbability(uint64_t addr)
 }
 
 /**
+ * @brief Computes the exponentially decayed hammer count based on elapsed ticks.
+ */
+double NeuroHammer::computeDecayedHammerCount(double currentHammerCount, Tick deltaTicks){
+    if (deltaTicks == 0){
+        return currentHammerCount;
+    }
+
+    // const double dt_seconds = static_cast<double>(deltaTicks) / getClockFrequency();
+
+    // double decayFactor = std::exp(-dt_seconds / p->hammer_count_decay_constant);
+    // double decayedHammerCount = currentHammerCount * decayFactor;
+    // return decayedHammerCount;
+    return currentHammerCount;
+}
+
+/**
  * @brief Entry point for fault injection, called on each memory request.
  */
 bool NeuroHammer::InjectFault(NVMainRequest *request)
 {
     assert(translator != nullptr && "Address translator is not set!");
 
-     // Only inject faults for row activations (not row buffer hits).
-    if (request->isRowBufferHit) {
-        return false;
-    }
-
-    // Check if this is a read or write request
-    bool isRead = (request->type == READ || request->type == READ_PRECHARGE);
+    // Check if this is a write request
     bool isWrite = (request->type == WRITE || request->type == WRITE_PRECHARGE);
     
-    // Only process read/write requests
-    if (!isRead && !isWrite) {
+    // Only process write requests
+    if (!isWrite) {
         return false;
     }
 
-    DPRINTF(NeuroHammer, "[InjectFault] Processing request for addr 0x%x\n",request->address.GetPhysicalAddress());
+    DPRINTF(NeuroHammer, "[InjectFault] Processing write request for address 0x%x\n",request->address.GetPhysicalAddress());
 
     // Extract address components from the request
     uint64_t row, col, bank, rank, channel, subarray;
     request->address.GetTranslatedAddress(&row, &col, &bank, &rank, &channel, &subarray);
     
-    // Get base address of this row
-    uint64_t baseRowAddr = GetPhysicalAddress(subarray,channel, rank, bank, row, 0);
-
     // Calculate the row size in bytes using NVMain's official formula (from MemoryController.cpp)
     //
     // Formula explanation:
-    //   memory word size (bytes) = device_width * tBURST * RATE * number_of_devices / 8
+    //   cell word size (bytes) = device_width * tBURST * RATE * number_of_devices / 8
     //
     // Where:
     //   - device_width: width of a single DRAM device in bits
@@ -186,163 +186,255 @@ bool NeuroHammer::InjectFault(NVMainRequest *request)
     //   - number_of_devices = bus_width / device_width
     //
     // Simplified form:
-    //   memory word size (bytes) = BusWidth * tBURST * RATE / 8
+    //   cell word size (bytes) = BusWidth * tBURST * RATE / 8
     //
     // This gives the total size of a row in bytes.
 
-    uint64_t memoryWordSize = p->BusWidth * p->tBURST * p->RATE / 8;
-    uint64_t rowSizeBytes = p->COLS * memoryWordSize;
+    uint64_t cellSizeBytes = (p->BusWidth * p->tBURST * p->RATE) / 8;
+    
+    uint64_t cellAddress = GetPhysicalAddress(subarray,channel, rank, bank, row, col);
 
-    // Reset the hammer count for this row
-    hammerCount.erase(baseRowAddr);
-    // Clear flipped status for all quadwords in this row
-    for (uint64_t quadAddr = baseRowAddr; quadAddr <baseRowAddr +  rowSizeBytes; quadAddr+=sizeof(uint64_t)) {
-        flippedQuadwords.erase(quadAddr);
+    for(uint64_t quadAddr = cellAddress; quadAddr<cellAddress+cellSizeBytes; quadAddr+=sizeof(uint64_t)){
+        if(hammerState.find(quadAddr) != hammerState.end()){
+            hammerState.erase(quadAddr);
+        }
     }
 
-    bool isReadHammering = false;
-    if(isRead) isReadHammering = true;
-    ProcessNeuroHammer(subarray,channel, rank, bank, row,request->addressFixUp,rowSizeBytes,isReadHammering);
+    uint64_t hammerIncrement = p->inc_write;
+    uint64_t addressFixUp = request->addressFixUp;
+
+    if(row + 1 < p->ROWS){
+        uint64_t cellAddressDown = GetPhysicalAddress(subarray,channel, rank, bank, row + 1, col);
+        for(uint64_t quadAddr = cellAddressDown; quadAddr<cellAddressDown+cellSizeBytes; quadAddr+=sizeof(uint64_t)){
+            if(hammerState.find(quadAddr) == hammerState.end()){
+                hammerState[quadAddr] = HammerInfo();
+            }
+            if(hammerState[quadAddr].lastTimeFullCellHammered == 0) hammerState[quadAddr].lastTimeFullCellHammered = curTick();
+            if(hammerState[quadAddr].lastTimeLeftMostBitHammered == 0)hammerState[quadAddr].lastTimeLeftMostBitHammered = curTick();
+            if(hammerState[quadAddr].lastTimeRightMostBitHammered == 0)hammerState[quadAddr].lastTimeRightMostBitHammered = curTick();
+            hammerState[quadAddr].fullCellDisturbanceCount=computeDecayedHammerCount(
+                hammerState[quadAddr].fullCellDisturbanceCount,
+                curTick() - hammerState[quadAddr].lastTimeFullCellHammered
+            ) + hammerIncrement;
+            hammerState[quadAddr].lastTimeFullCellHammered = curTick();
+
+            hammerState[quadAddr].leftmostBitDisturbanceCount=computeDecayedHammerCount(
+                hammerState[quadAddr].leftmostBitDisturbanceCount,
+                curTick() - hammerState[quadAddr].lastTimeLeftMostBitHammered
+            ) + hammerIncrement;
+            hammerState[quadAddr].lastTimeLeftMostBitHammered = curTick();
+
+            hammerState[quadAddr].rightmostBitDisturbanceCount=computeDecayedHammerCount(
+                hammerState[quadAddr].rightmostBitDisturbanceCount,
+                curTick() - hammerState[quadAddr].lastTimeRightMostBitHammered
+            ) + hammerIncrement;
+            hammerState[quadAddr].lastTimeRightMostBitHammered = curTick();
+
+            DPRINTF(NeuroHammer,"Hammer count: %llu\n",hammerState[quadAddr].fullCellDisturbanceCount);
+            if(!hammerState[quadAddr].fullCellFlipped && hammerState[quadAddr].fullCellDisturbanceCount >= p->HC_first){        
+                ProcessBitflipInQuadword(quadAddr,addressFixUp);
+            }
+        }
+    }
+    if(row > 0){
+        uint64_t cellAddressUp = GetPhysicalAddress(subarray,channel, rank, bank, row - 1, col);
+        for(uint64_t quadAddr = cellAddressUp; quadAddr<cellAddressUp+cellSizeBytes; quadAddr+=sizeof(uint64_t)){
+            if(hammerState.find(quadAddr) == hammerState.end()){
+                hammerState[quadAddr] = HammerInfo();
+            }
+            if(hammerState[quadAddr].lastTimeFullCellHammered == 0) hammerState[quadAddr].lastTimeFullCellHammered = curTick();
+            if(hammerState[quadAddr].lastTimeLeftMostBitHammered == 0)hammerState[quadAddr].lastTimeLeftMostBitHammered = curTick();
+            if(hammerState[quadAddr].lastTimeRightMostBitHammered == 0)hammerState[quadAddr].lastTimeRightMostBitHammered = curTick();
+            hammerState[quadAddr].fullCellDisturbanceCount=computeDecayedHammerCount(
+                hammerState[quadAddr].fullCellDisturbanceCount,
+                curTick() - hammerState[quadAddr].lastTimeFullCellHammered
+            ) + hammerIncrement;
+            hammerState[quadAddr].lastTimeFullCellHammered = curTick();
+
+            hammerState[quadAddr].leftmostBitDisturbanceCount=computeDecayedHammerCount(
+                hammerState[quadAddr].leftmostBitDisturbanceCount,
+                curTick() - hammerState[quadAddr].lastTimeLeftMostBitHammered
+            ) + hammerIncrement;
+            hammerState[quadAddr].lastTimeLeftMostBitHammered = curTick();
+
+            hammerState[quadAddr].rightmostBitDisturbanceCount=computeDecayedHammerCount(
+                hammerState[quadAddr].rightmostBitDisturbanceCount,
+                curTick() - hammerState[quadAddr].lastTimeRightMostBitHammered
+            ) + hammerIncrement;
+            hammerState[quadAddr].lastTimeRightMostBitHammered = curTick();
+
+            if(!hammerState[quadAddr].fullCellFlipped && hammerState[quadAddr].fullCellDisturbanceCount >= p->HC_first){        
+                ProcessBitflipInQuadword(quadAddr,addressFixUp);
+            }
+        }
+    }    
+    if(col > 0){
+        uint64_t cellAddressLeft = GetPhysicalAddress(subarray,channel, rank, bank, row, col - 1);
+        uint64_t totalQuadwords =  cellSizeBytes/sizeof(uint64_t);
+        uint64_t cellAddressRightMostQuadwordOfLeft = cellAddressLeft + (totalQuadwords-1)*sizeof(uint64_t);
+
+        if(hammerState.find(cellAddressRightMostQuadwordOfLeft) == hammerState.end()){
+            hammerState[cellAddressRightMostQuadwordOfLeft] = HammerInfo();
+        }
+        if(hammerState[cellAddressRightMostQuadwordOfLeft].lastTimeRightMostBitHammered == 0)hammerState[cellAddressRightMostQuadwordOfLeft].lastTimeRightMostBitHammered = curTick();
+        hammerState[cellAddressRightMostQuadwordOfLeft].rightmostBitDisturbanceCount=computeDecayedHammerCount(
+            hammerState[cellAddressRightMostQuadwordOfLeft].rightmostBitDisturbanceCount,
+            curTick() - hammerState[cellAddressRightMostQuadwordOfLeft].lastTimeRightMostBitHammered
+        ) + hammerIncrement;
+        hammerState[cellAddressRightMostQuadwordOfLeft].lastTimeRightMostBitHammered = curTick();
+
+        if(!hammerState[cellAddressRightMostQuadwordOfLeft].rightmostBitFlipped && hammerState[cellAddressRightMostQuadwordOfLeft].rightmostBitDisturbanceCount >= p->HC_first){
+            ProcessSingleBitEdgeFlip(cellAddressRightMostQuadwordOfLeft,false,addressFixUp);
+        }
+    }
+    if(col + 1 < p->COLS){
+        uint64_t cellAddressRight = GetPhysicalAddress(subarray,channel, rank, bank, row, col + 1);
+        uint64_t cellAddressLeftMostQuadwordOfRight = cellAddressRight;
+
+        if(hammerState.find(cellAddressLeftMostQuadwordOfRight) == hammerState.end()){
+            hammerState[cellAddressLeftMostQuadwordOfRight] = HammerInfo();
+        }
+        if(hammerState[cellAddressLeftMostQuadwordOfRight].lastTimeLeftMostBitHammered == 0)hammerState[cellAddressLeftMostQuadwordOfRight].lastTimeLeftMostBitHammered = curTick();
+        hammerState[cellAddressLeftMostQuadwordOfRight].leftmostBitDisturbanceCount=computeDecayedHammerCount(
+            hammerState[cellAddressLeftMostQuadwordOfRight].leftmostBitDisturbanceCount,
+            curTick() - hammerState[cellAddressLeftMostQuadwordOfRight].lastTimeLeftMostBitHammered
+        ) + hammerIncrement;
+        hammerState[cellAddressLeftMostQuadwordOfRight].lastTimeLeftMostBitHammered = curTick();
+
+        if(!hammerState[cellAddressLeftMostQuadwordOfRight].leftmostBitFlipped && hammerState[cellAddressLeftMostQuadwordOfRight].leftmostBitDisturbanceCount >= p->HC_first){
+            ProcessSingleBitEdgeFlip(cellAddressLeftMostQuadwordOfRight,true,addressFixUp);
+        }
+    }
 
     return true;
 }
 
-void NeuroHammer::ProcessNeuroHammer(uint64_t subarray,uint64_t channel, uint64_t rank, uint64_t bank, uint64_t row,uint64_t addressFixUp,uint64_t rowSizeBytes, bool isReadHammering)
-{
+void NeuroHammer::ProcessBitflipInQuadword(uint64_t quadAddr,uint64_t addressFixUp){
+    // Calculate bit flip probability based on hammer count
+    double progress = std::min(
+        static_cast<double>(hammerState[quadAddr].fullCellDisturbanceCount - p->HC_first) / 
+        static_cast<double>(p->HC_last - p->HC_first), 
+        1.0
+    );
+    
+    double quadwordFlipRate = p->HC_last_bitflip_rate * progress * 64;
+    
+    DPRINTF(NeuroHammer,"Quadword flip rate: %f And hammer count: %llu\n", quadwordFlipRate,hammerState[quadAddr].fullCellDisturbanceCount);
 
-    // Process neighboring rows within distance 5
-    for (int dist = -5; dist <= 5; dist++) {
-        if (dist == 0 || static_cast<int64_t>(row) + dist < 0 || static_cast<int64_t>(row) + dist >= static_cast<int64_t>(p->ROWS)) {
-            DPRINTF(NeuroHammer,"Row out of bounds, no neurohammer effects\n");
-            continue;
-        }
-        
-        // Determine hammer increment value
-        double hammerIncrement = 0.0;
-        int abs_dist = std::abs(dist);
-        if (isReadHammering) {
-            if (abs_dist == 1) hammerIncrement = p->inc_dist_1_read;
-            else if (abs_dist == 2) hammerIncrement = p->inc_dist_2_read;
-            else if (abs_dist == 3) hammerIncrement = p->inc_dist_3_read;
-            else if (abs_dist == 4) hammerIncrement = p->inc_dist_4_read;
-            else if (abs_dist == 5) hammerIncrement = p->inc_dist_5_read;
-        } else { // isWrite
-            if (abs_dist == 1) hammerIncrement = p->inc_dist_1_write;
-            else if (abs_dist == 2) hammerIncrement = p->inc_dist_2_write;
-            else if (abs_dist == 3) hammerIncrement = p->inc_dist_3_write;
-            else if (abs_dist == 4) hammerIncrement = p->inc_dist_4_write;
-            else if (abs_dist == 5) hammerIncrement = p->inc_dist_5_write;
-        }
-        
-        if (hammerIncrement == 0.0) {
-            // We do not increment for this distance
-            continue;
-        }
-        
-        // Get base address of the victim row
-        uint64_t victimRowBase = GetPhysicalAddress(subarray,channel, rank, bank, row + dist, 0);
-        
-        // Initialize or increment hammer count
-        if (hammerCount.find(victimRowBase) == hammerCount.end()) {
-            hammerCount[victimRowBase] = hammerIncrement;
-            DPRINTF(NeuroHammer,"Row accessed for the first time\n");
-            continue;
-        }
-        hammerCount[victimRowBase] += hammerIncrement;
-        DPRINTF(NeuroHammer,"Hammer count for row %llu: %f/%f\n", victimRowBase,hammerCount[victimRowBase],p->HC_first);
+    // Probabilistically flip quadword
+    if (GenerateProbability(quadAddr) > quadwordFlipRate) {
+        // No flip
+        return;
+    }
 
-        // Check if we've reached the threshold for bit flips
-        if (hammerCount[victimRowBase] < p->HC_first) {
-            continue;
-        }
-        
-        // Calculate bit flip probability based on hammer count
-        double progress = std::min(
-            static_cast<double>(hammerCount[victimRowBase] - p->HC_first) / 
-            static_cast<double>(p->HC_last - p->HC_first), 
-            1.0
-        );
-        
-        double rowFlipRate = p->HC_last_bitflip_rate * progress * 64; // * bits in quadword
-        
-        DPRINTF(NeuroHammer,"Row flip rate: %f And hammer count: %llu\n", rowFlipRate,hammerCount[victimRowBase]);
+    hammerState[quadAddr].fullCellFlipped = true;
+    
+    DPRINTF(NeuroHammer,"Generating bit flip mask\n");
+    // Generate bit flip mask
+    uint64_t mask = 0;
+    uint64_t gem5Addr = quadAddr + addressFixUp;
+    uint64_t* hostAddr = (uint64_t*)NVMainMemory::masterInstance->toHostAddr(gem5Addr);
+    uint64_t oldData = *hostAddr;
+    if (p->flip_mask) {
+        // Optional: apply external mask, but enforce 0->1 only
+        mask = p->flip_mask & ~oldData; // Mask out any bits already 1
+    } else {
+        // Generate random mask based on bit flip probabilities
+        std::mt19937_64 gen(quadAddr ^ 0xcafecafecafecafe);
+        std::uniform_real_distribution<double> dist(0.0, 1.0);
+        double flippedBitsRan = dist(gen);
 
-        // Iterate over quadwords in the victim row
-        for (uint64_t quadAddr=victimRowBase;quadAddr<victimRowBase+rowSizeBytes;quadAddr+=sizeof(uint64_t)) {
-            
-            // Skip if already flipped
-            if (flippedQuadwords.find(quadAddr) != flippedQuadwords.end()) {
-                continue;
+        int flippedBits;
+        if (flippedBitsRan <= p->proba_1_bit_flipped) {
+            flippedBits = 1;
+        } else if (flippedBitsRan <= p->proba_1_bit_flipped + p->proba_2_bit_flipped) {
+            flippedBits = 2;
+        } else if (flippedBitsRan <= p->proba_1_bit_flipped + p->proba_2_bit_flipped + p->proba_3_bit_flipped) {
+            flippedBits = 3;
+        } else {
+            flippedBits = 4;
+        }
+
+        // Find all 0-bit positions in oldData
+        std::vector<int> zeroBits;
+        for (int b = 0; b < 64; ++b) {
+            if (((oldData >> b) & 1) == 0) {
+                zeroBits.push_back(b);
             }
-            
-            // Probabilistically flip quadword
-            if (GenerateProbability(quadAddr) > rowFlipRate) {
-                // No flip
-                continue;
-            }
-            
-            // Mark as flipped
-            flippedQuadwords.insert(quadAddr);
-            
-            DPRINTF(NeuroHammer,"Generating bit flip mask\n");
-            // Generate bit flip mask
-            uint64_t mask = 0;
-            uint64_t gem5Addr = quadAddr + addressFixUp;
-            uint64_t* hostAddr = (uint64_t*)NVMainMemory::masterInstance->toHostAddr(gem5Addr);
-            uint64_t oldData = *hostAddr;
+        }
 
-            if (p->flip_mask) {
-                // Optional: apply external mask, but enforce 0->1 only
-                mask = p->flip_mask & ~oldData; // Mask out any bits already 1
-            } else {
-                // Generate random mask based on bit flip probabilities
-                std::mt19937_64 gen(quadAddr ^ 0xcafecafecafecafe);
-                std::uniform_real_distribution<double> dist(0.0, 1.0);
-                double flippedBitsRan = dist(gen);
+        // If no zero bits are available, skip
+        if (zeroBits.empty()) {
+            DPRINTF(NeuroHammer_BitFlip, "No 0-bits to flip at Addr: 0x%x\n", quadAddr);
+            return;
+        }
 
-                int flippedBits;
-                if (flippedBitsRan <= p->proba_1_bit_flipped) {
-                    flippedBits = 1;
-                } else if (flippedBitsRan <= p->proba_1_bit_flipped + p->proba_2_bit_flipped) {
-                    flippedBits = 2;
-                } else if (flippedBitsRan <= p->proba_1_bit_flipped + p->proba_2_bit_flipped + p->proba_3_bit_flipped) {
-                    flippedBits = 3;
-                } else {
-                    flippedBits = 4;
-                }
-
-                // Find all 0-bit positions in oldData
-                std::vector<int> zeroBits;
-                for (int b = 0; b < 64; ++b) {
-                    if (((oldData >> b) & 1) == 0) {
-                        zeroBits.push_back(b);
-                    }
-                }
-
-                // If no zero bits are available, skip
-                if (zeroBits.empty()) {
-                    DPRINTF(NeuroHammer_BitFlip, "No 0-bits to flip at Addr: 0x%x\n", quadAddr);
-                    return;
-                }
-
-                // Shuffle zero-bit positions and pick up to flippedBits
-                std::shuffle(zeroBits.begin(), zeroBits.end(), gen);
-                int numToFlip = std::min(flippedBits, (int)zeroBits.size());
-                for (int i = 0; i < numToFlip; ++i) {
-                    mask |= ((uint64_t)1 << zeroBits[i]);
-                }
-            }
-
-            // Apply the XOR mask to simulate bitflips (0 -> 1 only)
-            *hostAddr ^= mask;
-            totalBitFlips += __builtin_popcountll(mask);
-
-            DPRINTF(NeuroHammer_BitFlip,
-                    "BIT FLIP! Addr: 0x%x, Mask: 0x%x, Old Data: 0x%x, New Data: 0x%x\n",
-                    quadAddr, mask, oldData, *hostAddr);
-
+        // Shuffle zero-bit positions and pick up to flippedBits
+        std::shuffle(zeroBits.begin(), zeroBits.end(), gen);
+        int numToFlip = std::min(flippedBits, (int)zeroBits.size());
+        for (int i = 0; i < numToFlip; ++i) {
+            mask |= ((uint64_t)1 << zeroBits[i]);
         }
     }
+    *hostAddr ^= mask;
+    totalBitFlips += __builtin_popcountll(mask);
+
+    DPRINTF(NeuroHammer_BitFlip,
+            "BIT FLIP! Addr: 0x%x, Mask: 0x%x, Old Data: 0x%x, New Data: 0x%x\n",
+            quadAddr, mask, oldData, *hostAddr);
+}
+
+void NeuroHammer::ProcessSingleBitEdgeFlip(uint64_t quadAddr, bool flipLeft,uint64_t addressFixUp){
+    // Calculate bit flip probability based on hammer count
+    uint64_t currentHammerCount = flipLeft ? hammerState[quadAddr].leftmostBitDisturbanceCount : hammerState[quadAddr].rightmostBitDisturbanceCount;
+    double progress = std::min(
+        static_cast<double>(currentHammerCount - p->HC_first) / 
+        static_cast<double>(p->HC_last - p->HC_first), 
+        1.0
+    );
+    
+    double currentBitFlipRate = p->HC_last_bitflip_rate * progress * 1;
+    
+    DPRINTF(NeuroHammer,"Bit flip rate: %f And hammer count: %llu\n", currentBitFlipRate,currentHammerCount);
+
+    // Probabilistically flip quadword
+    if (GenerateProbability(quadAddr) > currentBitFlipRate) {
+        // No flip
+        return;
+    }
+
+    if(flipLeft){
+        hammerState[quadAddr].leftmostBitFlipped = true;
+    }else{
+        hammerState[quadAddr].rightmostBitFlipped = true;
+    }
+    
+    DPRINTF(NeuroHammer,"Generating bit flip mask\n");
+    // Generate bit flip mask
+    uint64_t mask = 0;
+    uint64_t gem5Addr = quadAddr + addressFixUp;
+    uint64_t* hostAddr = (uint64_t*)NVMainMemory::masterInstance->toHostAddr(gem5Addr);
+    uint64_t oldData = *hostAddr;
+    // Decide which bit to flip
+    int bitIndex = flipLeft ? 63 : 0;
+    // Check if this bit is currently 0 (only 0 -> 1 allowed)
+    bool bitIsZero = (((oldData >> bitIndex) & 1ULL) == 0ULL);
+    if (bitIsZero)
+    {
+        // Create mask with single bit at bitIndex
+        mask = (1ULL << bitIndex);
+    }
+    else
+    {
+        // The bit is already 1 → cannot flip again; mask stays 0
+        mask = 0;
+    }
+    *hostAddr ^= mask;
+    totalBitFlips += __builtin_popcountll(mask);
+
+    DPRINTF(NeuroHammer_BitFlip,
+            "BIT FLIP! Addr: 0x%x, Mask: 0x%x, Old Data: 0x%x, New Data: 0x%x\n",
+            quadAddr, mask, oldData, *hostAddr);
 }
 
 /**
@@ -393,7 +485,6 @@ uint64_t NeuroHammer::GetPhysicalAddress(uint64_t subarray,uint64_t channel, uin
  */
 void NeuroHammer::RegisterStats()
 {
+    NVMObject::RegisterStats();
     AddStat(totalBitFlips);
-    AddStat(rowsAffected);
-    AddStat(totalHammerCount);
 }

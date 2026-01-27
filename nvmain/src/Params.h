@@ -226,21 +226,8 @@ class Params
     double HC_last;                // Hammer count after which no additional bit flips occur
     double HC_last_bitflip_rate;   // Probability of observing a quadword flip at HC_last
     
-    // Hammer count increment factors for READ-based aggressors
-    // (Effect strength decreases with distance from the aggressor row)
-    double inc_dist_1_read;        // Increment for immediate neighbor rows
-    double inc_dist_2_read;        // Increment for second-nearest rows
-    double inc_dist_3_read;        // Increment for third-nearest rows
-    double inc_dist_4_read;        // Increment for fourth-nearest rows
-    double inc_dist_5_read;        // Increment for fifth-nearest rows
-
     // Hammer count increment factors for WRITE-based aggressors
-    // (Writes usually have stronger disturbance effects than reads)
-    double inc_dist_1_write;       // Increment for immediate neighbor rows
-    double inc_dist_2_write;       // Increment for second-nearest rows
-    double inc_dist_3_write;       // Increment for third-nearest rows
-    double inc_dist_4_write;       // Increment for fourth-nearest rows
-    double inc_dist_5_write;       // Increment for fifth-nearest rows
+    double inc_write;               // Increment for WRITE-based aggressors
     
     // Bit flip probability distribution (per quadword)
     double proba_1_bit_flipped;    // Probability of exactly 1 bit flipping
@@ -251,6 +238,7 @@ class Params
     // Flip mask used to enforce deterministic/static bit flips (if enabled)
     uint64_t flip_mask;            // Bitmask specifying which bits are forced to flip
 
+    double hammer_count_decay_constant;  // Time constant (seconds) controlling exponential hammer count decay.
 
 
 

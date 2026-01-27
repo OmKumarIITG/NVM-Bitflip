@@ -210,20 +210,8 @@ Params::Params( )
     HC_last  = 150000.0;           
     HC_last_bitflip_rate = 0.005;
 
-    // Distance-dependent hammer count increments (READ aggressors)
-    inc_dist_1_read = 1.0;         // Immediate neighbors affected by reads
-    inc_dist_2_read = 0.0;
-    inc_dist_3_read = 0.0;
-    inc_dist_4_read = 0.0;
-    inc_dist_5_read = 0.0;
-
-    // Distance-dependent hammer count increments (WRITE aggressors)
-    // (Writes generally induce stronger disturbance, so defaults can be tuned higher if needed)
-    inc_dist_1_write = 1.0;        
-    inc_dist_2_write = 0.0;
-    inc_dist_3_write = 0.0;
-    inc_dist_4_write = 0.0;
-    inc_dist_5_write = 0.0;
+    // WRITE aggressor increments
+    inc_write = 1.0;        
 
     // Bit flip probability distribution per quadword
     proba_1_bit_flipped = 1.0;     // By default, assuming only single-bit flips occur
@@ -233,6 +221,9 @@ Params::Params( )
 
     // Flip mask (0 = no forced static flips, bits set = forced flips at those positions)
     flip_mask = 0;
+
+    // Hammer count decay time constant (seconds)
+    hammer_count_decay_constant = 1e-3; // 1 milliseconds
 
 }
 
@@ -469,29 +460,9 @@ void Params::SetParams( Config *c )
     if(c->KeyExists("HC_last_bitflip_rate"))
         HC_last_bitflip_rate = static_cast<double>(atof(c->GetString("HC_last_bitflip_rate").c_str()));    
 
-    // READ aggressor increments
-    if (c->KeyExists("inc_dist_1_read"))
-        inc_dist_1_read = atof(c->GetString("inc_dist_1_read").c_str());  // Immediate neighbor
-    if (c->KeyExists("inc_dist_2_read"))
-        inc_dist_2_read = atof(c->GetString("inc_dist_2_read").c_str());
-    if (c->KeyExists("inc_dist_3_read"))
-        inc_dist_3_read = atof(c->GetString("inc_dist_3_read").c_str());
-    if (c->KeyExists("inc_dist_4_read"))
-        inc_dist_4_read = atof(c->GetString("inc_dist_4_read").c_str());
-    if (c->KeyExists("inc_dist_5_read"))
-        inc_dist_5_read = atof(c->GetString("inc_dist_5_read").c_str());
-
     // WRITE aggressor increments
-    if (c->KeyExists("inc_dist_1_write"))
-        inc_dist_1_write = atof(c->GetString("inc_dist_1_write").c_str());  // Immediate neighbor
-    if (c->KeyExists("inc_dist_2_write"))
-        inc_dist_2_write = atof(c->GetString("inc_dist_2_write").c_str());
-    if (c->KeyExists("inc_dist_3_write"))
-        inc_dist_3_write = atof(c->GetString("inc_dist_3_write").c_str());
-    if (c->KeyExists("inc_dist_4_write"))
-        inc_dist_4_write = atof(c->GetString("inc_dist_4_write").c_str());
-    if (c->KeyExists("inc_dist_5_write"))
-        inc_dist_5_write = atof(c->GetString("inc_dist_5_write").c_str()); 
+    if (c->KeyExists("inc_write"))
+        inc_write = static_cast<double>(atof(c->GetString("inc_write").c_str()));
 
     // Bit flip probabilities
     if(c->KeyExists("proba_1_bit_flipped"))
@@ -515,6 +486,13 @@ void Params::SetParams( Config *c )
         else
             //otherwise, it is decimal
             flip_mask = static_cast<uint64_t>(strtoull(mask_str.c_str(), NULL, 10));
+    }
+    // Hammer decay time constant (seconds)
+    if(c->KeyExists("hammer_count_decay_constant"))
+    {
+        hammer_count_decay_constant = static_cast<double>(
+            atof(c->GetString("hammer_count_decay_constant").c_str())
+        );
     }
 
 }

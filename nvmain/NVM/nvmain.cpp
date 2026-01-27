@@ -297,6 +297,13 @@ void NVMain::SetConfig( Config *conf, std::string memoryName, bool createChildre
     }
 
     RegisterStats( );
+
+    // Register NeuroHammer stats at the end so they appear at the bottom of the output
+    if (neuroHammer) {
+        neuroHammer->SetStats(GetStats());
+        neuroHammer->StatName("neurohammer");
+        neuroHammer->RegisterStats();
+    }
 }
 
 bool NVMain::IsIssuable( NVMainRequest *request, FailReason *reason )

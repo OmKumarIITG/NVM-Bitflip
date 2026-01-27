@@ -249,12 +249,10 @@ uint64_t reverse_translate_address(uint64_t channel,
 
 // Hammer: with sum accumulation for sanity check
 void hammer(uint64_t *addr1, uint64_t *addr2, size_t hammer_count) {
-    uint64_t sum = 0;
-
     for (size_t i = 0; i < hammer_count; i++) {
-        // read aggressor addresses and add to sum
-        sum += *(volatile uint64_t *)addr1;
-        sum += *(volatile uint64_t *)addr2;
+        // write 0
+        *(volatile uint64_t *)addr1 = 0ULL;
+        *(volatile uint64_t *)addr2 = 0ULL;
 
         // flush from cache
         asm volatile("clflush (%0)" :: "r"(addr1) : "memory");
@@ -262,12 +260,6 @@ void hammer(uint64_t *addr1, uint64_t *addr2, size_t hammer_count) {
 
         // enforce ordering
         asm volatile("mfence" ::: "memory");
-    }
-
-    // Sanity check
-    if (sum != 0) {
-        printf("error: sum=%" PRIx64 "\n", sum);
-        exit(1);
     }
 }
 

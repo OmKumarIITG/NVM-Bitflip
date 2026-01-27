@@ -1,6 +1,7 @@
 #ifndef __NEUROHAMMER_H__
 #define __NEUROHAMMER_H__
 
+#include "base/types.hh"
 #include "src/AddressTranslator.h"
 #include "src/FaultModel.h"
 #include "Simulators/gem5/nvmain_mem.hh"
@@ -47,11 +48,22 @@ private:
     static NeuroHammer* instance;
 
     // State Tracking 
-    // Tracks the accumulated hammer count for each victim row's base address.
-    std::map<uint64_t, double> hammerCount;
+    struct HammerInfo {
+        double fullCellDisturbanceCount  = 0;   // counts full-cell disturbances (used for up/down neighbors)
+        double leftmostBitDisturbanceCount  = 0;   // counts leftmost-bit disturbances (used for right neighbor)
+        double rightmostBitDisturbanceCount = 0;   // counts rightmost-bit disturbances (used for left neighbor)
 
-    // Tracks physical addresses of quadwords that have already been flipped to prevent re-flipping.
-    std::set<uint64_t> flippedQuadwords;
+        bool fullCellFlipped  = false;  // flip already applied to full cell?
+        bool leftmostBitFlipped  = false;  // leftmost-bit flip already applied?
+        bool rightmostBitFlipped = false;  // rightmost-bit flip already applied?
+
+        gem5::Tick lastTimeFullCellHammered = 0;
+        gem5::Tick lastTimeLeftMostBitHammered = 0;
+        gem5::Tick lastTimeRightMostBitHammered = 0;
+    };
+
+    // Tracks the disturbance counters and flip flags for a victim cell in a row. Key is the physical address of the cell.
+    std::map<uint64_t, HammerInfo> hammerState;
 
     // Caches generated probabilities for addresses to ensure deterministic behavior.
     std::unordered_map<uint64_t, double> probabilities;
@@ -61,13 +73,14 @@ private:
 
     // Statistics Counters 
     ncounter_t totalBitFlips;
-    ncounter_t rowsAffected;
-    ncounter_t totalHammerCount;
     
     // Helper methods
     double GenerateProbability(uint64_t addr);
-    void ProcessNeuroHammer(uint64_t subarray, uint64_t channel, uint64_t rank, uint64_t bank, uint64_t row,uint64_t addressFixUp,uint64_t rowSizeBytes, bool isReadHammering);
+    void ProcessBitflipInQuadword(uint64_t quadAddr,uint64_t addressFixUp);
+    void ProcessSingleBitEdgeFlip(uint64_t quadAddr, bool flipLeft,uint64_t addressFixUp);
+    void maskOldData(uint64_t quadAddr,uint64_t mask);
     uint64_t GetPhysicalAddress(uint64_t subarray, uint64_t channel, uint64_t rank, uint64_t bank, uint64_t row, uint64_t col);
+    double computeDecayedHammerCount(double currentHammerCount, gem5::Tick deltaTicks);
 
     // Pointer to the NVMain address translator.
     AddressTranslator* translator;
